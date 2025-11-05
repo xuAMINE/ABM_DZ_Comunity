@@ -9,6 +9,8 @@ import {
   Alert,
   useColorScheme,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { login, signup } from "../lib/auth";
 import { db } from "../lib/firebase";
@@ -24,6 +26,7 @@ export default function LoginScreen() {
   const [zip, setZip] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = isDark ? darkTheme : lightTheme;
@@ -73,97 +76,103 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[s.container, { backgroundColor: theme.bg }]}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
     >
-      <Text style={[s.title, { color: theme.text }]}>
-        DZ Community — {mode === "login" ? "Login" : "Create Account"}
-      </Text>
-
-      {mode === "signup" && (
-        <>
-          <TextInput
-            style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-            placeholder="Full name"
-            placeholderTextColor={theme.placeholder}
-            value={fullName}
-            onChangeText={setFullName}
-          />
-          <TextInput
-            style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-            placeholder="Phone number"
-            placeholderTextColor={theme.placeholder}
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-          />
-          <TextInput
-            style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-            placeholder="City (e.g., Chicago)"
-            placeholderTextColor={theme.placeholder}
-            value={city}
-            onChangeText={setCity}
-          />
-          <TextInput
-            style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-            placeholder="State (e.g., IL)"
-            placeholderTextColor={theme.placeholder}
-            autoCapitalize="characters"
-            value={stateName}
-            onChangeText={setStateName}
-          />
-          <TextInput
-            style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-            placeholder="ZIP code"
-            placeholderTextColor={theme.placeholder}
-            keyboardType="numeric"
-            value={zip}
-            onChangeText={setZip}
-          />
-        </>
-      )}
-
-      <TextInput
-        style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-        placeholder="Email"
-        placeholderTextColor={theme.placeholder}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-        placeholder="Password"
-        placeholderTextColor={theme.placeholder}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity
-        style={[s.btn, { backgroundColor: theme.buttonBg }]}
-        onPress={onSubmit}
-        disabled={loading}
+      <ScrollView
+        contentContainerStyle={[s.container, { backgroundColor: theme.bg }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {loading ? (
-          <ActivityIndicator color={theme.buttonText} />
-        ) : (
-          <Text style={[s.btnTxt, { color: theme.buttonText }]}>
-            {mode === "login" ? "Log in" : "Sign up"}
-          </Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => setMode(mode === "login" ? "signup" : "login")}>
-        <Text style={[s.link, { color: theme.link }]}>
-          {mode === "login"
-            ? "Don't have an account? Sign up"
-            : "Have an account? Log in"}
+        <Text style={[s.title, { color: theme.text }]}>
+          DZ Community — {mode === "login" ? "Login" : "Create Account"}
         </Text>
-      </TouchableOpacity>
-    </ScrollView>
+
+        {mode === "signup" && (
+          <>
+            <TextInput
+              style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+              placeholder="Full name"
+              placeholderTextColor={theme.placeholder}
+              value={fullName}
+              onChangeText={setFullName}
+            />
+            <TextInput
+              style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+              placeholder="Phone number"
+              placeholderTextColor={theme.placeholder}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+            />
+            <TextInput
+              style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+              placeholder="City (e.g., Chicago)"
+              placeholderTextColor={theme.placeholder}
+              value={city}
+              onChangeText={setCity}
+            />
+            <TextInput
+              style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+              placeholder="State (e.g., IL)"
+              placeholderTextColor={theme.placeholder}
+              autoCapitalize="characters"
+              value={stateName}
+              onChangeText={setStateName}
+            />
+            <TextInput
+              style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+              placeholder="ZIP code"
+              placeholderTextColor={theme.placeholder}
+              keyboardType="numeric"
+              value={zip}
+              onChangeText={setZip}
+            />
+          </>
+        )}
+
+        <TextInput
+          style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+          placeholder="Email"
+          placeholderTextColor={theme.placeholder}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextInput
+          style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
+          placeholder="Password"
+          placeholderTextColor={theme.placeholder}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        <TouchableOpacity
+          style={[s.btn, { backgroundColor: theme.buttonBg }]}
+          onPress={onSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={theme.buttonText} />
+          ) : (
+            <Text style={[s.btnTxt, { color: theme.buttonText }]}>
+              {mode === "login" ? "Log in" : "Sign up"}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+          <Text style={[s.link, { color: theme.link }]}>
+            {mode === "login"
+              ? "Don't have an account? Sign up"
+              : "Have an account? Log in"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -178,6 +187,7 @@ const s = StyleSheet.create({
     fontSize: 22,
     fontWeight: "600",
     marginBottom: 20,
+    textAlign: "center",
   },
   input: {
     width: "100%",
@@ -192,6 +202,7 @@ const s = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
+    marginTop: 6,
   },
   btnTxt: {
     fontWeight: "600",
@@ -200,6 +211,7 @@ const s = StyleSheet.create({
   link: {
     marginTop: 14,
     fontSize: 15,
+    textAlign: "center",
   },
 });
 

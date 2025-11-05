@@ -1,76 +1,40 @@
 // app/_layout.tsx
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
-import 'react-native-reanimated';
-import { useColorScheme } from '@/components/useColorScheme';
-import { listenAuth } from '../lib/auth';
-
-SplashScreen.preventAutoHideAsync();
-
-export const unstable_settings = { initialRouteName: 'login' };
+import { Stack, useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { listenAuth, getMyProfile } from '../lib/auth';
+import { useColorScheme } from 'react-native'; // keep it simple on web
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    ...FontAwesome.font,
-  });
-
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  if (!loaded) return null;
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const segments = useSegments();
-  const [booted, setBooted] = useState(false);
 
   useEffect(() => {
-    console.log('👟 Booting auth listener...');
-    const timer = setTimeout(async () => {
-      console.log('⏳ Timeout fallback — hiding splash');
-      setBooted(true);
-      await SplashScreen.hideAsync();
-    }, 4000);
-
+    // Subscribe to Firebase auth and route on change
     const unsub = listenAuth(async (user) => {
-      console.log('👤 Auth state changed:', user ? user.email : 'no user');
-      clearTimeout(timer);
-
-      const current = segments[0]; // current route group (e.g., 'login' or 'home')
-
-      if (user && current !== 'home') {
-        router.replace('/home');
-      } else if (!user && current !== 'login') {
+      if (!user) {
         router.replace('/login');
+        return;
       }
-
-      setBooted(true);
-      await SplashScreen.hideAsync();
+      try {
+        const profile = await getMyProfile(user.uid);
+        const role = (profile?.role ?? 'member') as 'member' | 'admin';
+        router.replace(role === 'admin' ? '/admin/dashboard' : '/member/home');
+      } catch {
+        // If profile read fails, still show member home so app isn't blank
+        router.replace('/member/home');
+      }
     });
+    return () => unsub();
+  }, [router]);
 
-    return () => {
-      unsub();
-      clearTimeout(timer);
-    };
-  }, [segments]);
-
-  if (!booted) return null;
-
+  // Render the stacks immediately (no blocking "return null")
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack initialRouteName="login">
+      <Stack>
         <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="home" options={{ title: 'Home' }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="member" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );

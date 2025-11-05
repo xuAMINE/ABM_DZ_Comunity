@@ -1,4 +1,3 @@
-// /lib/auth.ts
 import { auth, db } from "./firebase";
 import {
   createUserWithEmailAndPassword,
@@ -7,10 +6,18 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  getDoc,
+} from "firebase/firestore";
 
-export const listenAuth = (cb: (u: User | null) => void) => onAuthStateChanged(auth, cb);
+// Listen to auth state
+export const listenAuth = (cb: (u: User | null) => void) =>
+  onAuthStateChanged(auth, cb);
 
+// Sign up a new user
 export const signup = async (
   email: string,
   password: string,
@@ -42,11 +49,14 @@ export const signup = async (
   return cred.user;
 };
 
+// Log in existing user
 export const login = (email: string, password: string) =>
   signInWithEmailAndPassword(auth, email, password);
 
+// Log out user
 export const logout = () => signOut(auth);
 
+// Fetch member profile
 export const getMyProfile = async (uid: string) => {
   const snap = await getDoc(doc(db, "members", uid));
   return snap.exists() ? snap.data() : null;
