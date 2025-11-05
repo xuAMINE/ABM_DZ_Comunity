@@ -22,7 +22,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
