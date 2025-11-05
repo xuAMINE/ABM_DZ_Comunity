@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from "react-native";
 import { login, signup } from "../lib/auth";
-import { db } from "../lib/firebase";
+import { db } from "../lib/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 
 export default function LoginScreen() {
