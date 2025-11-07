@@ -25,6 +25,7 @@
     "expo-status-bar": "~3.0.8",
     "expo-web-browser": "~15.0.8",
     "firebase": "^12.4.0",
+    "lodash.debounce": "^4.0.8",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.65.0",

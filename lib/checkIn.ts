@@ -1,49 +1,41 @@
-import * as Notifications from "expo-notifications";
-import { db } from "./firebaseConfig";
-import { updateDoc, doc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
+// lib/checkins.ts
+import { auth, db } from "./firebaseConfig";
+import {
+    addDoc, collection, serverTimestamp, getDocs, doc, setDoc
+} from "firebase/firestore";
 
-/**
- * Schedule a repeating local notification every 3 days
- */
-export const scheduleCheckIn = async (userId: string) => {
-    await Notifications.cancelAllScheduledNotificationsAsync(); // avoid duplicates
-    await Notifications.scheduleNotificationAsync({
-        content: {
-            title: "Check-in",
-            body: "Hey! Are you okay?",
-            data: { userId },
-        },
-        trigger: { seconds: 3 * 24 * 60 * 60, repeats: true },
-    });
-};
+/** User submits their check-in answer */
+export async function submitCheckin(status: "ok" | "not_ok", note?: string) {
+    const me = auth.currentUser;
+    if (!me) throw new Error("Not signed in");
 
-/**
- * Update user's check-in status in Firestore
- */
-export const updateUserStatus = async (userId: string, status: "okay" | "not okay") => {
-    const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, {
+    // 1) record the checkin
+    const ref = await addDoc(collection(db, "checkins"), {
+        uid: me.uid,
         status,
-        lastCheckIn: serverTimestamp(),
+        note: note || null,
+        createdAt: serverTimestamp(),
     });
-};
 
-/**
- * Notify all users who have this user in their favorites
- */
-export const notifyFavorites = async (userId: string, status: "okay" | "not okay") => {
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("favorites", "array-contains", userId));
-    const snapshot = await getDocs(q);
+    // 2) fan-out "inbox" notifications to all of my friends
+    const friendsSnap = await getDocs(collection(db, "members", me.uid, "friends"));
+    const friends = friendsSnap.docs.map((d) => d.id);
 
-    snapshot.forEach(async (docSnap) => {
-        const favoriteUser = docSnap.data();
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Favorite Update ❤️",
-                body: `${favoriteUser.name || "A friend"} said they are "${status}"`,
-            },
-            trigger: null,
-        });
-    });
-};
+    const writes: Promise<any>[] = [];
+    for (const fuid of friends) {
+        const inboxDoc = doc(collection(db, "members", fuid, "inbox"));
+        writes.push(
+            setDoc(inboxDoc, {
+                type: "friend_checkin",
+                fromUid: me.uid,
+                status,
+                note: note || null,
+                createdAt: serverTimestamp(),
+                read: false,
+            })
+        );
+    }
+    await Promise.all(writes);
+
+    return ref.id;
+}

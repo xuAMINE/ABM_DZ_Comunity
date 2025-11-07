@@ -33,11 +33,12 @@ export const signup = async (
     state,
     zip,
     groupId,
+    fullNameLower: fullName.toLowerCase(),
     role: "member",
     status: "ok",
     createdAt: serverTimestamp(),
     lastCheckIn: serverTimestamp(),
-  });
+  }, {merge: true});
 
   return cred.user;
 };
