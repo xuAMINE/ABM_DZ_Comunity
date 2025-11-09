@@ -1,4 +1,5 @@
 // lib/posts.ts
+import { orderBy } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import {
   addDoc,
@@ -22,7 +23,7 @@ const postsCol = collection(db, 'posts');
 
 /** ------------------ CREATE ------------------ **/
 export async function createPost(
-  input: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'ownerId'>
+  input: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'ownerId' | 'status'>
 ) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Not authenticated');
@@ -30,14 +31,16 @@ export async function createPost(
   const payload: any = {
     ...input,
     ownerId: uid,
-    status: input.status ?? 'pending',
+    status: 'approved',                // <-- instant publish
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    publishedAt: serverTimestamp(),    // <-- for sorting/analytics later
   };
 
   const docRef = await addDoc(postsCol, payload);
   return { id: docRef.id, ...payload } as Post;
 }
+
 
 /** ------------------ READ (MY POSTS) ------------------ **/
 export async function getMyPosts() {
@@ -117,3 +120,17 @@ export async function setModeration(
     ...(status === 'approved' ? { publishedAt: serverTimestamp() } : {}),
   });
 }
+
+/** ------------------ PUBLIC FEED (NO MODERATION) ------------------ **/
+export async function getPublicFeed(limitCount = 50) {
+  const q = query(postsCol, orderBy('createdAt', 'desc'), limit(limitCount));
+  const snap = await getDocs(q);
+
+  return snap.docs.map((d: QueryDocumentSnapshot<DocumentData>) => ({
+    id: d.id,
+    ...(d.data() as Record<string, any>),
+  })) as Post[];
+}
+
+
+

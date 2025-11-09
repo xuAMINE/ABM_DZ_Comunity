@@ -1,68 +1,141 @@
 // app/member/home.tsx
-import { Link } from 'expo-router';
-import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
+// app/member/home.tsx
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, FlatList, TouchableOpacity, TextInput, Image } from "react-native";
+import { Link } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { getPublicFeed } from "@/lib/posts";
 
-const light = {
-  bg: '#f9f9f9',
-  card: '#fff',
-  text: '#111',
-  sub: '#555',
-  border: '#ddd',
-  primary: '#1e90ff',
-};
-const dark = {
-  bg: '#0d1117',
-  card: '#161b22',
-  text: '#e6edf3',
-  sub: '#8b949e',
-  border: '#30363d',
-  primary: '#2f81f7',
-};
+function timeAgo(ts?: any) {
+  try {
+    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+    const s = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60); if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60); if (h < 24) return `${h}h`;
+    const dd = Math.floor(h / 24); return `${dd}d`;
+  } catch { return ""; }
+}
 
-export default function Home() {
-  const cs = useColorScheme();
-  const theme = cs === 'dark' ? dark : light;
-
+function PostCard({ item }: { item: any }) {
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg, padding: 16 }}>
-      <Text style={{ color: theme.text, fontSize: 20, fontWeight: '600', marginBottom: 6 }}>
-        Welcome 👋
-      </Text>
-      <Text style={{ color: theme.sub, marginBottom: 16 }}>
-        What would you like to do?
-      </Text>
+    <View style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 12 }}>
+      {/* header */}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#ddd" }}>
+          <Feather name="user" size={18} />
+        </View>
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ fontWeight: "700" }}>{item.authorName ?? "Member"}</Text>
+          <Text style={{ fontSize: 12 }}>
+            {(item.authorCity && item.authorState) ? `${item.authorCity}, ${item.authorState} • ` : ""}
+            {timeAgo(item.createdAt)} ago
+          </Text>
+        </View>
+        <Feather name="more-horizontal" size={20} />
+      </View>
 
-      <View style={{ gap: 12 }}>
-        {/* Create a post */}
-        <Link href="/member/posts/new" asChild>
-          <TouchableOpacity
-            style={{
-              backgroundColor: theme.primary,
-              paddingVertical: 14,
-              borderRadius: 12,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Create a post</Text>
-          </TouchableOpacity>
-        </Link>
+      {/* content */}
+      {item.title ? <Text style={{ marginTop: 10, fontSize: 16, fontWeight: "600" }}>{item.title}</Text> : null}
+      {item.description ? <Text style={{ marginTop: 6 }}>{item.description}</Text> : null}
+      {item.imageUrl ? (
+        <Image source={{ uri: String(item.imageUrl) }} style={{ height: 180, borderRadius: 10, marginTop: 10 }} />
+      ) : null}
 
-        {/* My posts */}
-        <Link href="/member/posts" asChild>
-          <TouchableOpacity
-            style={{
-              backgroundColor: theme.card,
-              borderWidth: 1,
-              borderColor: theme.border,
-              paddingVertical: 14,
-              borderRadius: 12,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: theme.text, fontWeight: '600' }}>My posts</Text>
-          </TouchableOpacity>
+      {/* actions (placeholders for later) */}
+      <View style={{ flexDirection: "row", gap: 18, marginTop: 12 }}>
+        <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Feather name="heart" size={20} /><Text>Favorite</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Feather name="message-circle" size={20} /><Text>Comment</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* details */}
+      <View style={{ marginTop: 10 }}>
+        <Link href={{ pathname: "/member/posts/[id]", params: { id: item.id } }}>
+          View details
         </Link>
       </View>
+    </View>
+  );
+}
+
+export default function MemberHome() {
+  const [search, setSearch] = useState("");
+  const [items, setItems] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const data = await getPublicFeed(50); // newest approved posts
+      setItems(data);
+    })();
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!items) return null;
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(p =>
+      String(p.title || "").toLowerCase().includes(q) ||
+      String(p.description || "").toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* top bar */}
+      <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ fontWeight: "800", fontSize: 18 }}>DZ Community</Text>
+        <View style={{ flexDirection: "row", columnGap: 16 }}>
+          <Feather name="bell" size={22} />
+          <Feather name="user" size={22} />
+        </View>
+      </View>
+
+      {/* search */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search posts…"
+          style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, paddingHorizontal: 12, height: 42 }}
+        />
+      </View>
+
+      {/* feed */}
+      {!filtered ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <Text>Loading…</Text>
+        </View>
+      ) : filtered.length === 0 ? (
+        <View style={{ padding: 16 }}>
+          <Text style={{ marginBottom: 8 }}>No posts yet.</Text>
+          <Link href="/member/posts/new">Create the first post</Link>
+        </View>
+      ) : (
+        <FlatList
+          contentContainerStyle={{ padding: 16, rowGap: 12 }}
+          data={filtered}
+          keyExtractor={(i) => i.id}
+          renderItem={({ item }) => <PostCard item={item} />}
+        />
+      )}
+
+      {/* floating + */}
+      <Link href="/member/posts/new" asChild>
+        <TouchableOpacity
+          style={{
+            position: "absolute", right: 20, bottom: 24,
+            width: 56, height: 56, borderRadius: 28,
+            alignItems: "center", justifyContent: "center",
+            borderWidth: 1, borderColor: "#ddd", backgroundColor: "#fff"
+          }}
+        >
+          <Feather name="plus" size={26} />
+        </TouchableOpacity>
+      </Link>
     </View>
   );
 }
