@@ -1,4 +1,5 @@
 // app/_layout.tsx
+import 'react-native-gesture-handler';
 import { DarkTheme as NavDark, DefaultTheme as NavLight, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
