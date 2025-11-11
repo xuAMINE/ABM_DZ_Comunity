@@ -19,10 +19,10 @@ export default function RootLayout() {
       try {
         const profile = await getMyProfile(user.uid);
         const role = (profile?.role ?? 'member') as 'member' | 'admin';
-        router.replace(role === 'admin' ? '/admin/dashboard' : '/member/home');
+        router.replace(role === 'admin' ? '/admin/dashboard' : '/member/posts/homepage');
       } catch {
         // If profile read fails, still show member home so app isn't blank
-        router.replace('/member/home');
+        router.replace('/member/posts/homepage');
       }
     });
     return () => unsub();

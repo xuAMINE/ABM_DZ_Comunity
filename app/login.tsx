@@ -1,4 +1,8 @@
+
+//app/login.tsx
 import { useState, useEffect } from "react";
+import { useRouter } from 'expo-router';
+
 import {
   View,
   Text,
@@ -14,7 +18,10 @@ import {
 } from "react-native";
 import { login, signup } from "../lib/auth";
 import { db } from "../lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../lib/firebase";
+//import { collection, getDocs } from "firebase/firestore";
+import { getDoc, doc } from "firebase/firestore";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -28,20 +35,29 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+ 
+
   const isDark = colorScheme === "dark";
   const theme = isDark ? darkTheme : lightTheme;
 
-  useEffect(() => {
-    async function testFirestore() {
-      try {
-        const snapshot = await getDocs(collection(db, "members"));
-        console.log("✅ Firestore connected! Total docs:", snapshot.size);
-      } catch (error) {
-        console.error("❌ Firestore error:", error);
-      }
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, async (u) => {
+    if (!u) return;
+    try {
+      // Read ONLY the current user's member doc (allowed by rules)
+      const snap = await getDoc(doc(db, "members", u.uid));
+      console.log("✅ My member doc exists:", snap.exists());
+    } catch (error) {
+      console.error("❌ Firestore error after sign-in:", error);
     }
-    testFirestore();
-  }, []);
+  });
+  return unsub;
+}, []);
+
+
+
 
   const onSubmit = async () => {
     if (
@@ -52,8 +68,7 @@ export default function LoginScreen() {
       Alert.alert("Missing info", "Please fill all fields.");
       return;
     }
-
-    try {
+try {
       setLoading(true);
       if (mode === "login") {
         await login(email.trim(), password);
@@ -68,12 +83,18 @@ export default function LoginScreen() {
           zip.trim()
         );
       }
-    } catch (e: any) {
+
+      // ⬇️ Go straight to the feed
+      router.replace("/member/posts/homepage");
+
+    } catch (e:any) {
       Alert.alert("Auth error", e.message);
     } finally {
       setLoading(false);
     }
   };
+
+
 
   return (
     <KeyboardAvoidingView

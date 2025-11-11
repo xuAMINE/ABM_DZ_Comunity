@@ -1,4 +1,5 @@
-// app/member/posts/[id].tsx
+//app/member/posts/[id].tsx
+
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
@@ -8,8 +9,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPostById, updatePost, deletePost } from '@/lib/posts';
-import { useKeyboardOffset } from '@/components/useKeyboardOffset';
 import type { Post } from '@/types/post';
+import StickyFooter from '@/components/StickyFooter';
+import { FOOTER_HEIGHT, EXTRA_SPACER } from '@/constants/layout';
 
 const light = { bg:'#f9f9f9', card:'#fff', text:'#111', sub:'#555', border:'#ccc', inputBg:'#fff', placeholder:'#888', primary:'#1e90ff', danger:'#dc2626', success:'#238636', border2:'#ddd' };
 const dark  = { bg:'#0d1117', card:'#161b22', text:'#e6edf3', sub:'#8b949e', border:'#30363d', inputBg:'#161b22', placeholder:'#8b949e', primary:'#2f81f7', danger:'#ef4444', success:'#238636', border2:'#30363d' };
@@ -21,6 +23,7 @@ type FieldProps = {
   onFocus?: () => void;
   theme: typeof light;
 };
+
 const Field = memo(function Field({ label, k, value, keyboardType='default', onChange, onFocus, theme }: FieldProps) {
   return (
     <View style={{ marginBottom: 12 }}>
@@ -47,7 +50,6 @@ export default function PostDetail() {
 
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const { offset, visible } = useKeyboardOffset();
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -163,7 +165,8 @@ export default function PostDetail() {
 
   if (!post) return null;
 
-  const bottomPad = 24 + insets.bottom + (Platform.OS === 'ios' && visible ? offset : 0);
+  // Enough space so the last field clears the pinned footer
+  const bottomPad = FOOTER_HEIGHT + EXTRA_SPACER + insets.bottom;
 
   return (
     <SafeAreaView style={{ flex:1, backgroundColor: theme.bg }}>
@@ -172,71 +175,61 @@ export default function PostDetail() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
       >
-        <ScrollView
-          ref={scrollRef}
-          contentInsetAdjustmentBehavior="automatic"
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          contentContainerStyle={{ padding:16, paddingBottom: bottomPad }}
-        >
-          <Text style={{ color: theme.sub, marginBottom: 6 }}>
-            {post.category} • {post.status}
-          </Text>
-
-          <Text style={{ color: theme.text, marginBottom: 6 }}>Title</Text>
-          <TextInput
-            style={{ borderWidth:1, borderRadius:10, padding:12, backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text, marginBottom:12 }}
-            value={title}
-            onChangeText={setTitle}
-            returnKeyType="next"
-            blurOnSubmit={false}
-          />
-
-          <Text style={{ color: theme.text, marginBottom: 6 }}>Description</Text>
-          <TextInput
-            style={{ borderWidth:1, borderRadius:10, padding:12, minHeight:100, backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text, marginBottom:12 }}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-          />
-
-          {fieldConfigs.map((cfg, idx) => (
-            <Field
-              key={cfg.k}
-              label={cfg.label}
-              k={cfg.k}
-              value={String((details as any)[cfg.k] ?? '')}
-              keyboardType={cfg.keyboardType}
-              onChange={onChangeField}
-              theme={theme}
-              // 🔹 Ensure buttons show when user focuses the last field
-              onFocus={idx === fieldConfigs.length - 1 ? () => scrollRef.current?.scrollToEnd({ animated: true }) : undefined}
-            />
-          ))}
-
-          {/* Inline footer (part of scroll content) */}
-          <View style={{ height: 12 }} />
-          <View
-            style={{
-              borderWidth: 1,
-              borderColor: theme.border2,
-              backgroundColor: theme.card,
-              borderRadius: 12,
-              padding: 8,
-              flexDirection: 'row',
-              gap: 10,
-            }}
+        <View style={{ flex:1 }}>
+          <ScrollView
+            ref={scrollRef}
+            contentInsetAdjustmentBehavior="automatic"
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
+            contentContainerStyle={{ padding:16, paddingBottom: bottomPad }}
           >
-            <TouchableOpacity onPress={onSave} style={{ backgroundColor: theme.success, paddingVertical:12, borderRadius:10, flex:1 }}>
-              <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onDelete} style={{ backgroundColor: theme.danger, paddingVertical:12, borderRadius:10 }}>
-              <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Delete</Text>
-            </TouchableOpacity>
-          </View>
+            <Text style={{ color: theme.sub, marginBottom: 6 }}>
+              {post.category} • {post.status}
+            </Text>
 
-          <View style={{ height: 8 }} />
-        </ScrollView>
+            <Text style={{ color: theme.text, marginBottom: 6 }}>Title</Text>
+            <TextInput
+              style={{ borderWidth:1, borderRadius:10, padding:12, backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text, marginBottom:12 }}
+              value={title}
+              onChangeText={setTitle}
+              returnKeyType="next"
+              blurOnSubmit={false}
+            />
+
+            <Text style={{ color: theme.text, marginBottom: 6 }}>Description</Text>
+            <TextInput
+              style={{ borderWidth:1, borderRadius:10, padding:12, minHeight:100, backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text, marginBottom:12 }}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
+
+            {fieldConfigs.map((cfg, idx) => (
+              <Field
+                key={cfg.k}
+                label={cfg.label}
+                k={cfg.k}
+                value={String((details as any)[cfg.k] ?? '')}
+                keyboardType={cfg.keyboardType}
+                onChange={onChangeField}
+                theme={theme}
+                onFocus={idx === fieldConfigs.length - 1 ? () => scrollRef.current?.scrollToEnd({ animated: true }) : undefined}
+              />
+            ))}
+          </ScrollView>
+
+          {/* Sticky footer above keyboard */}
+          <StickyFooter bg={theme.card} border={theme.border2}>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity onPress={onSave} style={{ backgroundColor: theme.success, paddingVertical:12, borderRadius:10, flex:1 }}>
+                <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onDelete} style={{ backgroundColor: theme.danger, paddingVertical:12, borderRadius:10 }}>
+                <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </StickyFooter>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
