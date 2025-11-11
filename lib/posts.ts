@@ -5,7 +5,7 @@ import {
   query, where, limit, deleteDoc, DocumentData, QueryDocumentSnapshot,
   orderBy,            // ✅ add this
 } from 'firebase/firestore';
-import { getMemberProfile } from './members'; // ⬅️ add this
+import { getMemberProfile } from './member'; // ⬅️ add this
 import { Post } from '../types/post';
 
 // Reference to posts collection
