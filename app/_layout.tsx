@@ -1,12 +1,40 @@
 // app/_layout.tsx
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme as NavDark, DefaultTheme as NavLight, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { listenAuth, getMyProfile } from '../lib/auth';
-import { useColorScheme } from 'react-native'; // keep it simple on web
+import { ThemeProvider, useAppTheme } from '@/lib/theme';
+
+function LayoutInner() {
+  const { isDark, theme } = useAppTheme();
+
+  // Map your theme to React Navigation theme colors
+  const navTheme = {
+    dark: isDark,
+    colors: {
+      ...(isDark ? NavDark.colors : NavLight.colors),
+      background: theme.bg,
+      card: theme.card,
+      text: theme.text,
+      border: theme.border,
+      primary: theme.primary,
+    },
+    // Provide fonts to satisfy React Navigation Theme type (fallback to theme fonts or an empty object)
+    fonts: (isDark ? (NavDark as any).fonts : (NavLight as any).fonts) || {},
+  };
+
+  return (
+    <NavThemeProvider value={navTheme}>
+      <Stack>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="member" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+      </Stack>
+    </NavThemeProvider>
+  );
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,21 +49,16 @@ export default function RootLayout() {
         const role = (profile?.role ?? 'member') as 'member' | 'admin';
         router.replace(role === 'admin' ? '/admin/dashboard' : '/member/posts/homepage');
       } catch {
-        // If profile read fails, still show member home so app isn't blank
         router.replace('/member/posts/homepage');
       }
     });
     return () => unsub();
   }, [router]);
 
-  // Render the stacks immediately (no blocking "return null")
+  // Provide your app theme first, then feed it into RN Navigation
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="member" options={{ headerShown: false }} />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
-      </Stack>
+    <ThemeProvider>
+      <LayoutInner />
     </ThemeProvider>
   );
 }

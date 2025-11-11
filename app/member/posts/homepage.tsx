@@ -4,10 +4,12 @@ import {
   View, Text, FlatList, TouchableOpacity, TextInput, Image, RefreshControl
 } from "react-native";
 import { Link, useRouter } from "expo-router";
+import { DrawerActions, useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { getPublicFeed } from "@/lib/posts";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAppTheme } from '@/lib/theme';
 
 const CATS = ['janazah','events','jobs','pub'] as const;
 type Cat = typeof CATS[number];
@@ -26,12 +28,13 @@ function timeAgo(ts?: any) {
 }
 
 function Pill({ label, tone = "default" }: { label: string; tone?: "default"|"muted"|"success"|"warning"|"danger" }) {
+  const { theme, isDark } = useAppTheme();
   const palette: Record<string, {bg:string; fg:string; border:string}> = {
-    default: { bg:"#fff", fg:"#111", border:"#ddd" },
-    muted:   { bg:"#f5f5f5", fg:"#555", border:"#e5e5e5" },
-    success: { bg:"#ecfdf5", fg:"#065f46", border:"#a7f3d0" },
-    warning: { bg:"#fffbeb", fg:"#92400e", border:"#fcd34d" },
-    danger:  { bg:"#fef2f2", fg:"#991b1b", border:"#fecaca" },
+    default: { bg: theme.card, fg: theme.text, border: theme.border },
+    muted:   { bg: isDark ? '#111827' : '#f3f4f6', fg: isDark ? '#cbd5e1' : '#475569', border: theme.border },
+    success: { bg: isDark ? '#064e3b' : '#ecfdf5', fg: isDark ? '#a7f3d0' : '#065f46', border: isDark ? '#065f46' : '#a7f3d0' },
+    warning: { bg: isDark ? '#78350f' : '#fffbeb', fg: isDark ? '#fde68a' : '#92400e', border: isDark ? '#92400e' : '#fcd34d' },
+    danger:  { bg: isDark ? '#7f1d1d' : '#fef2f2', fg: isDark ? '#fecaca' : '#991b1b', border: isDark ? '#ef4444' : '#fecaca' },
   };
   const c = palette[tone] ?? palette.default;
   return (
@@ -51,16 +54,17 @@ function statusTone(s?: string): "muted"|"success"|"warning"|"danger"|"default" 
 }
 
 function PostCard({ item }: { item: any }) {
+  const { theme } = useAppTheme();
   return (
-    <View style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 12, backgroundColor:"#fff" }}>
+    <View style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 12, backgroundColor: theme.card }}>
       {/* header */}
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#ddd" }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.border }}>
           <Feather name="user" size={18} />
         </View>
         <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700" }}>{item.authorName ?? "Member"}</Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontWeight: "700", color: theme.text }}>{item.authorName ?? "Member"}</Text>
+          <Text style={{ fontSize: 12, color: theme.placeholder }}>
             {(item.authorCity && item.authorState) ? `${item.authorCity}, ${item.authorState} • ` : ""}
             {timeAgo(item.createdAt)} ago
           </Text>
@@ -69,8 +73,8 @@ function PostCard({ item }: { item: any }) {
       </View>
 
       {/* title & description */}
-      {item.title ? <Text style={{ marginTop: 10, fontSize: 16, fontWeight: "600" }}>{item.title}</Text> : null}
-      {item.description ? <Text style={{ marginTop: 6 }}>{item.description}</Text> : null}
+      {item.title ? <Text style={{ marginTop: 10, fontSize: 16, fontWeight: "600", color: theme.text }}>{item.title}</Text> : null}
+      {item.description ? <Text style={{ marginTop: 6, color: theme.text }}>{item.description}</Text> : null}
       {item.imageUrl ? (
         <Image source={{ uri: String(item.imageUrl) }} style={{ height: 180, borderRadius: 10, marginTop: 10 }} />
       ) : null}
@@ -84,17 +88,17 @@ function PostCard({ item }: { item: any }) {
       {/* actions (placeholders) */}
       <View style={{ flexDirection: "row", gap: 18, marginTop: 12 }}>
         <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Feather name="heart" size={20} /><Text>Favorite</Text>
+          <Feather name="heart" size={20} /><Text style={{ color: theme.text }}>Favorite</Text>
         </TouchableOpacity>
         <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Feather name="message-circle" size={20} /><Text>Comment</Text>
+          <Feather name="message-circle" size={20} /><Text style={{ color: theme.text }}>Comment</Text>
         </TouchableOpacity>
       </View>
 
       {/* details */}
       <View style={{ marginTop: 10 }}>
         <Link href={{ pathname: "/member/posts/[id]", params: { id: item.id } }}>
-          View details
+          <Text style={{ color: theme.primary }}>View details</Text>
         </Link>
       </View>
     </View>
@@ -108,25 +112,26 @@ function ComposerCard({
   onSelectCat: (c: Cat) => void;
 }) {
   const router = useRouter();
+  const { theme } = useAppTheme();
 
   const openComposer = useCallback(() => {
     router.push({ pathname: "/member/posts/new", params: { category: selectedCat } });
   }, [router, selectedCat]);
 
   return (
-    <View style={{ borderWidth:1, borderColor:"#ddd", borderRadius:12, padding:12, backgroundColor:"#fff" }}>
+    <View style={{ borderWidth:1, borderColor:theme.border, borderRadius:12, padding:12, backgroundColor:theme.card }}>
       <View style={{ flexDirection:"row", alignItems:"center", gap:10 }}>
-        <View style={{ width:36, height:36, borderRadius:18, alignItems:"center", justifyContent:"center", borderWidth:1, borderColor:"#ddd" }}>
+        <View style={{ width:36, height:36, borderRadius:18, alignItems:"center", justifyContent:"center", borderWidth:1, borderColor:theme.border }}>
           <Feather name="user" size={18} />
         </View>
 
         {/* Faux input */}
         <TouchableOpacity
           onPress={openComposer}
-          style={{ flex:1, borderWidth:1, borderColor:"#ddd", borderRadius:999, paddingHorizontal:14, paddingVertical:10, justifyContent:"center" }}
+          style={{ flex:1, borderWidth:1, borderColor:theme.border, borderRadius:999, paddingHorizontal:14, paddingVertical:10, justifyContent:"center" }}
           activeOpacity={0.7}
         >
-          <Text style={{ color:"#666" }}>What do you want to post today?</Text>
+          <Text style={{ color: theme.placeholder }}>What do you want to post today?</Text>
         </TouchableOpacity>
       </View>
 
@@ -140,11 +145,11 @@ function ComposerCard({
               onPress={()=>onSelectCat(c)}
               style={{
                 paddingHorizontal:12, paddingVertical:8, borderRadius:999, borderWidth:1,
-                borderColor: active ? "#1e90ff" : "#ddd",
-                backgroundColor: active ? "#1e90ff" : "#fff",
+                borderColor: active ? theme.primary : theme.border,
+                backgroundColor: active ? theme.primary : theme.chipBg,
               }}
             >
-              <Text style={{ color: active ? "#fff" : "#111" }}>{c}</Text>
+              <Text style={{ color: active ? "#fff" : theme.text }}>{c}</Text>
             </TouchableOpacity>
           );
         })}
@@ -153,13 +158,13 @@ function ComposerCard({
       {/* quick actions */}
       <View style={{ flexDirection:"row", justifyContent:"space-between", marginTop:12 }}>
         <TouchableOpacity onPress={openComposer} style={{ flexDirection:"row", alignItems:"center", gap:6 }}>
-          <Feather name="type" size={18} /><Text>Create text</Text>
+          <Feather name="type" size={18} /><Text style={{ color: theme.text }}>Create text</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={openComposer} style={{ flexDirection:"row", alignItems:"center", gap:6 }}>
-          <Feather name="image" size={18} /><Text>Photo</Text>
+          <Feather name="image" size={18} /><Text style={{ color: theme.text }}>Photo</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={openComposer} style={{ flexDirection:"row", alignItems:"center", gap:6 }}>
-          <Feather name="tag" size={18} /><Text>Category</Text>
+          <Feather name="tag" size={18} /><Text style={{ color: theme.text }}>Category</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -167,6 +172,9 @@ function ComposerCard({
 }
 
 export default function MemberHome() {
+  const { theme } = useAppTheme();
+  const nav = useNavigation();
+
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<any[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -177,7 +185,6 @@ export default function MemberHome() {
     const data = await getPublicFeed(50);
     setItems(data);
   }, []);
-
 
   // ✅ Auth guard: fetch only when signed in
   useEffect(() => {
@@ -204,10 +211,13 @@ export default function MemberHome() {
   }, [items, search]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
       {/* top bar */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Text style={{ fontWeight: "800", fontSize: 18 }}>DZ Community</Text>
+        <TouchableOpacity onPress={() => (nav as any).dispatch?.(DrawerActions.openDrawer())}>
+          <Feather name="menu" size={22} />
+        </TouchableOpacity>
+        <Text style={{ fontWeight: "800", fontSize: 18, color: theme.text }}>DZ Community</Text>
         <View style={{ flexDirection: "row", columnGap: 16 }}>
           <Feather name="bell" size={22} />
           <Feather name="user" size={22} />
@@ -220,15 +230,15 @@ export default function MemberHome() {
           value={search}
           onChangeText={setSearch}
           placeholder="Search posts…"
-          style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, paddingHorizontal: 12, height: 42, backgroundColor:"#fff" }}
-          placeholderTextColor="#888"
+          style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, height: 42, backgroundColor: theme.inputBg, color: theme.text }}
+          placeholderTextColor={theme.placeholder}
         />
       </View>
 
       {/* feed */}
       {!filtered ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text>Loading…</Text>
+          <Text style={{ color: theme.text }}>Loading…</Text>
         </View>
       ) : (
         <FlatList
@@ -240,14 +250,14 @@ export default function MemberHome() {
           ListHeaderComponent={
             <View style={{ rowGap:12, marginBottom: 12 }}>
               <ComposerCard selectedCat={catForNew} onSelectCat={setCatForNew} />
-              <Text style={{ fontWeight:"700", marginTop:4 }}>Latest posts</Text>
+              <Text style={{ fontWeight:"700", marginTop:4, color: theme.text }}>Latest posts</Text>
             </View>
           }
           ListEmptyComponent={
             <View style={{ paddingVertical: 24 }}>
-              <Text style={{ marginBottom: 8 }}>No posts yet.</Text>
+              <Text style={{ marginBottom: 8, color: theme.text }}>No posts yet.</Text>
               <Link href={{ pathname: "/member/posts/new", params: { category: catForNew } }}>
-                Create the first post
+                <Text style={{ color: theme.primary }}>Create the first post</Text>
               </Link>
             </View>
           }
@@ -261,7 +271,7 @@ export default function MemberHome() {
             position: "absolute", right: 20, bottom: 24,
             width: 56, height: 56, borderRadius: 28,
             alignItems: "center", justifyContent: "center",
-            borderWidth: 1, borderColor: "#ddd", backgroundColor: "#fff"
+            borderWidth: 1, borderColor: theme.border, backgroundColor: theme.card
           }}
         >
           <Feather name="plus" size={26} />

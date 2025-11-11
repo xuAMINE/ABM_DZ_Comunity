@@ -1,11 +1,10 @@
-
-//app/member/posts/new.tsx 
+// app/member/posts/new.tsx
 import { useCallback, useMemo, useRef, useState, memo, useEffect } from 'react';
-import { useLocalSearchParams } from 'expo-router'; // ⬅️ add this
+import { useLocalSearchParams } from 'expo-router';
 
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Alert,
-  useColorScheme, KeyboardAvoidingView, Platform, TextInputProps
+  KeyboardAvoidingView, Platform, TextInputProps
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -13,47 +12,8 @@ import { useRouter } from 'expo-router';
 import { createPost } from '@/lib/posts';
 import StickyFooter from '@/components/StickyFooter';
 import { FOOTER_HEIGHT, EXTRA_SPACER } from '@/constants/layout';
-
-// --- theme setup (drop this near the top of new.tsx) ---
-type Theme = {
-  bg: string;
-  text: string;
-  border: string;
-  border2: string;
-  inputBg: string;
-  placeholder: string;
-  primary: string;
-  chipBg: string;
-  card: string;
-  success: string;
-};
-
-const light: Theme = {
-  bg: '#ffffff',
-  text: '#111827',
-  border: '#e5e7eb',
-  border2: '#d1d5db',
-  inputBg: '#ffffff',
-  placeholder: '#9ca3af',
-  primary: '#2563eb',
-  chipBg: '#f3f4f6',
-  card: '#ffffff',
-  success: '#16a34a',
-};
-
-const dark: Theme = {
-  bg: '#0b0f13',
-  text: '#e5e7eb',
-  border: '#1f2937',
-  border2: '#374151',
-  inputBg: '#111827',
-  placeholder: '#6b7280',
-  primary: '#3b82f6',
-  chipBg: '#111827',
-  card: '#111827',
-  success: '#22c55e',
-};
-// --- end theme setup ---
+import { useAppTheme } from '@/lib/theme';
+import type { Theme } from '@/constants/theme';
 
 const CATS = ['janazah','events','jobs','pub'] as const;
 type Cat = typeof CATS[number];
@@ -84,21 +44,19 @@ const Field = memo(({ label, k, value, keyboardType, onChange, theme, onFocus }:
 Field.displayName = 'Field';
 
 export default function NewPost() {
-  const params = useLocalSearchParams<{ category?: string }>(); // ⬅️ add
+  const { theme } = useAppTheme();
+
+  const params = useLocalSearchParams<{ category?: string }>();
   const initialCat = (CATS as readonly string[]).includes(String(params.category))
     ? (params.category as Cat)
     : 'janazah';
 
-  const [category, setCategory] = useState<Cat>(initialCat); // ⬅️ use initialCat
+  const [category, setCategory] = useState<Cat>(initialCat);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [details, setDetails] = useState<Record<string, any>>({});
 
   const router = useRouter();
-
-  const cs = useColorScheme();
-  const theme = cs === 'dark' ? dark : light;
-
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
