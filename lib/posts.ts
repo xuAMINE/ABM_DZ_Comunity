@@ -118,14 +118,14 @@ export async function getPublicFeed(count = 50): Promise<Post[]> {
     const snap = await getDocs(q);
     const posts = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Post[];
 
-    // 🔁 Fetch member profiles and merge authorName
     const enrichedPosts = await Promise.all(posts.map(async (post) => {
       const profile = post.ownerId ? await getMemberProfile(post.ownerId) : null;
+
       return {
         ...post,
-        authorName: profile?.name ?? 'Member',
-        authorCity: profile?.city ?? null,
-        authorState: profile?.state ?? null,
+        authorName: profile && 'name' in profile ? profile.name! : 'Member',
+        authorCity: profile && 'city' in profile ? profile.city! : null,
+        authorState: profile && 'state' in profile ? profile.state! : null,
       };
     }));
 
@@ -135,6 +135,7 @@ export async function getPublicFeed(count = 50): Promise<Post[]> {
     throw err;
   }
 }
+
 
 
 

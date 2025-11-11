@@ -14,9 +14,74 @@ import { createPost } from '@/lib/posts';
 import StickyFooter from '@/components/StickyFooter';
 import { FOOTER_HEIGHT, EXTRA_SPACER } from '@/constants/layout';
 
+// --- theme setup (drop this near the top of new.tsx) ---
+type Theme = {
+  bg: string;
+  text: string;
+  border: string;
+  border2: string;
+  inputBg: string;
+  placeholder: string;
+  primary: string;
+  chipBg: string;
+  card: string;
+  success: string;
+};
+
+const light: Theme = {
+  bg: '#ffffff',
+  text: '#111827',
+  border: '#e5e7eb',
+  border2: '#d1d5db',
+  inputBg: '#ffffff',
+  placeholder: '#9ca3af',
+  primary: '#2563eb',
+  chipBg: '#f3f4f6',
+  card: '#ffffff',
+  success: '#16a34a',
+};
+
+const dark: Theme = {
+  bg: '#0b0f13',
+  text: '#e5e7eb',
+  border: '#1f2937',
+  border2: '#374151',
+  inputBg: '#111827',
+  placeholder: '#6b7280',
+  primary: '#3b82f6',
+  chipBg: '#111827',
+  card: '#111827',
+  success: '#22c55e',
+};
+// --- end theme setup ---
 
 const CATS = ['janazah','events','jobs','pub'] as const;
 type Cat = typeof CATS[number];
+
+const Field = memo(({ label, k, value, keyboardType, onChange, theme, onFocus }: {
+  label: string;
+  k: string;
+  value: string;
+  keyboardType?: TextInputProps['keyboardType'];
+  onChange: (key: string, value: string) => void;
+  theme: Theme;
+  onFocus?: () => void;
+}) => (
+  <View style={{ marginBottom: 12 }}>
+    <Text style={{ marginBottom: 6, color: theme.text }}>{label}</Text>
+    <TextInput
+      style={{ borderWidth: 1, borderRadius: 10, padding: 12, backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
+      placeholder={label}
+      placeholderTextColor={theme.placeholder}
+      value={value}
+      onChangeText={(v) => onChange(k, v)}
+      keyboardType={keyboardType}
+      onFocus={onFocus}
+    />
+  </View>
+));
+
+Field.displayName = 'Field';
 
 export default function NewPost() {
   const params = useLocalSearchParams<{ category?: string }>(); // ⬅️ add
