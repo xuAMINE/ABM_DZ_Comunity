@@ -84,7 +84,13 @@ function PostCard({ item }: { item: any }) {
       <View style={{ flexDirection:'row', gap:8, marginTop:10, flexWrap:'wrap' }}>
         {item.category ? <Pill label={String(item.category)} tone="muted" /> : null}
         {item.status ? <Pill label={String(item.status)} tone={statusTone(item.status)} /> : null}
+        {/* ✅ show “My post” tag if owned by current user */}
+        {auth.currentUser && item.ownerId === auth.currentUser.uid && (
+          <Pill label="My post" tone="success" />
+        )}
+
       </View>
+
 
       {/* actions (placeholders) */}
       <View style={{ flexDirection: "row", gap: 18, marginTop: 12 }}>

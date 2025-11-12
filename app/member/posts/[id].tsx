@@ -1,4 +1,5 @@
 //app/member/posts/[id].tsx
+import { auth, db } from "@/lib/firebase";
 
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
@@ -164,6 +165,8 @@ export default function PostDetail() {
   }
 
   if (!post) return null;
+  const isOwner = post.ownerId === auth.currentUser?.uid;
+
 
   // Enough space so the last field clears the pinned footer
   const bottomPad = FOOTER_HEIGHT + EXTRA_SPACER + insets.bottom;
@@ -219,16 +222,26 @@ export default function PostDetail() {
           </ScrollView>
 
           {/* Sticky footer above keyboard */}
-          <StickyFooter bg={theme.card} border={theme.border2}>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity onPress={onSave} style={{ backgroundColor: theme.success, paddingVertical:12, borderRadius:10, flex:1 }}>
-                <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onDelete} style={{ backgroundColor: theme.danger, paddingVertical:12, borderRadius:10 }}>
-                <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </StickyFooter>
+{/* ✅ Show update/delete only if current user owns this post */}
+{isOwner && (
+            <StickyFooter bg={theme.card} border={theme.border2}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={onSave}
+                  style={{ backgroundColor: theme.success, paddingVertical:12, borderRadius:10, flex:1 }}
+                >
+                  <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={onDelete}
+                  style={{ backgroundColor: theme.danger, paddingVertical:12, borderRadius:10 }}
+                >
+                  <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </StickyFooter>
+          )}
+
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
