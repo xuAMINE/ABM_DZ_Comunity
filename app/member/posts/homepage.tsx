@@ -1,3 +1,4 @@
+// app/member/posts/homepage.tsx
 // app/member/posts/home.tsx
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
@@ -180,6 +181,7 @@ export default function MemberHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [catForNew, setCatForNew] = useState<Cat>('janazah');
 
+  // ✅ Simple load: getPublicFeed already includes authorName/City/State
   const load = useCallback(async () => {
     console.log("load() – auth uid:", auth.currentUser?.uid);
     const data = await getPublicFeed(50);
