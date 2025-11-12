@@ -30,25 +30,35 @@ type AugmentedPost = Post & {
 const postsCol = collection(db, 'posts');
 
 /** ------------------ CREATE ------------------ **/
+// ---- createPost (robust + logs) ----
 export async function createPost(
   input: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'ownerId'>
 ): Promise<AugmentedPost> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Not authenticated');
 
-  // Strongly type the profile so TS knows fullName/city/state exist
-  const profile = (await getMemberProfile(uid)) as MemberProfile | null;
+  // ✅ Get member profile from Firestore
+  const profileSnap = await getDoc(doc(db, 'members', uid));
+  if (!profileSnap.exists()) {
+    throw new Error('Member profile not found — please re-login.');
+  }
 
-  const payload: any = {
+  const profile = profileSnap.data() as any;
+
+  const authorName = profile.fullName || profile.name || 'Unknown Member';
+  const authorCity = profile.city || null;
+  const authorState = profile.state || null;
+
+  const payload = {
     ...input,
     ownerId: uid,
     status: input.status ?? 'pending',
 
-    // Denormalized author fields (fast reads)
+    // ✅ Denormalized author info stored directly in the post
     authorId: uid,
-    authorName: profile?.fullName ?? 'Member',
-    authorCity: profile?.city ?? null,
-    authorState: profile?.state ?? null,
+    authorName,
+    authorCity,
+    authorState,
 
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -143,21 +153,16 @@ export async function setModeration(
 // For testing: get newest posts of *any* status (approved, pending, rejected)
 export async function getPublicFeed(count = 50): Promise<AugmentedPost[]> {
   try {
-    // newest first
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(count));
     const snap = await getDocs(q);
-
-    // Start with what’s in Firestore
     const posts = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as AugmentedPost[];
 
-    // Fast path: if a post already has authorName, use it.
-    // Fallback: hydrate from the member profile (older posts).
-    const needsHydration = posts.filter(p => !p.authorName);
+    const needsHydration = posts.filter(
+      p => !p.authorName || p.authorName === 'Member' || p.authorName === ''
+    );
 
     if (needsHydration.length > 0) {
-      // Prefer ownerId (your schema), fallback to authorId
       const getUid = (p: AugmentedPost) => p.ownerId ?? p.authorId ?? null;
-
       const uids = Array.from(
         new Set(
           needsHydration
@@ -174,15 +179,36 @@ export async function getPublicFeed(count = 50): Promise<AugmentedPost[]> {
         })
       );
 
-      // Merge author fields into posts that were missing them
       for (const p of posts) {
-        if (!p.authorName) {
+        if (!p.authorName || p.authorName === 'Member' || p.authorName === '') {
           const uid = getUid(p);
           const prof = (uid && cache.get(uid)) || null;
-          p.authorId = p.authorId ?? uid ?? null;
-          p.authorName = prof?.fullName ?? 'Member';
+
+          const name =
+            prof?.fullName ??
+            (prof as any)?.name ??
+            'Member';
+
+          p.authorId   = p.authorId   ?? uid ?? null;
+          p.authorName = name;
           p.authorCity = prof?.city ?? null;
-          p.authorState = prof?.state ?? null;
+          p.authorState= prof?.state ?? null;
+
+          // Optional backfill (will only succeed if current user can update this doc)
+          if (uid && typeof p.id === 'string' && name !== 'Member') {
+            try {
+              await updateDoc(doc(db, 'posts', p.id), {
+                authorId: uid,
+                authorName: name,
+                authorCity: p.authorCity ?? null,
+                authorState: p.authorState ?? null,
+                updatedAt: serverTimestamp(),
+              });
+            } catch (e) {
+              // Not owner? Rules block? Fine—UI is already hydrated.
+              console.warn('[getPublicFeed] Backfill skipped for', p.id, e);
+            }
+          }
         }
       }
     }
@@ -193,6 +219,7 @@ export async function getPublicFeed(count = 50): Promise<AugmentedPost[]> {
     throw err;
   }
 }
+
 
 
 
