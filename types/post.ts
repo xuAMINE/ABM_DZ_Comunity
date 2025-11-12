@@ -17,7 +17,14 @@ export type BasePost = {
   publishedAt?: Timestamp;
   location?: GeoPoint;
   tags?: string[];
+
+  // 🔹 Added author info (for displaying in feed)
+  authorName?: string | null;
+  authorCity?: string | null;
+  authorState?: string | null;
+  authorPhotoUrl?: string | null;
 };
+
 
 export type JanazahDetails = {
   deceasedName?: string;

@@ -5,6 +5,8 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, Image } from "react-
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { getPublicFeed } from "@/lib/posts";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function timeAgo(ts?: any) {
   try {
@@ -66,12 +68,47 @@ export default function MemberHome() {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<any[] | null>(null);
 
-  useEffect(() => {
+
+useEffect(() => {
     (async () => {
-      const data = await getPublicFeed(50); // newest approved posts
-      setItems(data);
+      try {
+        const data = await getPublicFeed(50);
+
+        // For now, fetch author info directly from "members"
+        const missing = Array.from(
+          new Set(data.filter(p => !p.authorName && p.ownerId).map(p => String(p.ownerId)))
+        );
+
+        const profiles = await Promise.all(
+          missing.map(async uid => {
+            const s = await getDoc(doc(db, "members", uid)); // uses readable members
+            return [uid, s.exists() ? (s.data() as any) : null] as const;
+          })
+        );
+
+        const map = new Map<string, any>(profiles);
+
+        const enriched = data.map(p => {
+          if (!p.authorName && p.ownerId && map.has(p.ownerId)) {
+            const m = map.get(p.ownerId) || {};
+            return {
+              ...p,
+              authorName: m.fullName ?? m.displayName ?? "Member",
+              authorCity: m.city ?? m.address?.city ?? null,
+              authorState: m.state ?? m.address?.state ?? null,
+              authorPhotoUrl: m.photoURL ?? null,
+            };
+          }
+          return p;
+        });
+
+        setItems(enriched);
+      } catch (err) {
+        console.error("Error fetching feed:", err);
+      }
     })();
   }, []);
+
 
   const filtered = useMemo(() => {
     if (!items) return null;

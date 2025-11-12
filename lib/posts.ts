@@ -28,6 +28,10 @@ export async function createPost(
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Not authenticated');
 
+  // 🔹 read the member profile
+    const mSnap = await getDoc(doc(db, "members", uid));
+    const m = mSnap.exists() ? (mSnap.data() as any) : {};
+
   const payload: any = {
     ...input,
     ownerId: uid,
@@ -35,6 +39,11 @@ export async function createPost(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     publishedAt: serverTimestamp(),    // <-- for sorting/analytics later
+     // 🔹 denormalized author fields used by the feed
+        authorName: m.fullName ?? m.fullname ?? m.full_name ?? m.displayName ?? "Member",
+        authorCity: m.city ?? m.address?.city ?? null,
+        authorState: m.state ?? m.address?.state ?? null,
+        authorPhotoUrl: m.photoURL ?? m.avatarUrl ?? null,
   };
 
   const docRef = await addDoc(postsCol, payload);

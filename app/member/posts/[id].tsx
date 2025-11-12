@@ -8,7 +8,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPostById, updatePost, deletePost } from '@/lib/posts';
-import { useKeyboardOffset } from '@/components/useKeyboardOffset';
+//import { useKeyboardOffset } from '@/components/useKeyboardOffset';
+import { auth } from '@/lib/firebase';
 import type { Post } from '@/types/post';
 
 const light = { bg:'#f9f9f9', card:'#fff', text:'#111', sub:'#555', border:'#ccc', inputBg:'#fff', placeholder:'#888', primary:'#1e90ff', danger:'#dc2626', success:'#238636', border2:'#ddd' };
@@ -20,8 +21,9 @@ type FieldProps = {
   onChange: (k: string, v: string) => void;
   onFocus?: () => void;
   theme: typeof light;
+  editable?: boolean;
 };
-const Field = memo(function Field({ label, k, value, keyboardType='default', onChange, onFocus, theme }: FieldProps) {
+const Field = memo(function Field({ label, k, value, keyboardType='default', onChange, onFocus, theme, editable = true }: FieldProps) {
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={{ marginBottom: 6, color: theme.text }}>{label}</Text>
@@ -32,8 +34,9 @@ const Field = memo(function Field({ label, k, value, keyboardType='default', onC
         keyboardType={keyboardType}
         returnKeyType="next"
         blurOnSubmit={false}
-        onChangeText={(v)=>onChange(k, v)}
-        onFocus={onFocus}
+        onChangeText={(v)=> editable ? onChange(k, v) : undefined}
+        onFocus={editable ? onFocus : undefined}
+        editable={editable}   // <-- important
       />
     </View>
   );
@@ -47,7 +50,7 @@ export default function PostDetail() {
 
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const { offset, visible } = useKeyboardOffset();
+  //const { offset, visible } = useKeyboardOffset();
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -56,6 +59,7 @@ export default function PostDetail() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [details, setDetails] = useState<Record<string, any>>({});
+
 
   useEffect(() => {
     (async () => {
@@ -76,6 +80,10 @@ export default function PostDetail() {
     })();
   }, [id, router]);
 
+  const isOwner = useMemo(
+      () => (post?.ownerId ?? '') === (auth.currentUser?.uid ?? ''),
+      [post?.ownerId]
+    );
   const onChangeField = useCallback((k: string, v: string) => {
     setDetails(prev => (prev[k] === v ? prev : { ...prev, [k]: v }));
   }, []);
@@ -124,6 +132,7 @@ export default function PostDetail() {
 
   const onSave = useCallback(async () => {
     if (!post) return;
+    if (!isOwner) return Alert.alert('Not allowed', 'Only the owner can edit this post.');
     if (!title.trim()) return Alert.alert('Title required');
     try {
       await updatePost(post.id!, { title, description, details } as Partial<Post>);
@@ -132,10 +141,11 @@ export default function PostDetail() {
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to save');
     }
-  }, [post, title, description, details, router]);
+  }, [post, isOwner, title, description, details, router]);
 
   const onDelete = useCallback(async () => {
     if (!post) return;
+    if (!isOwner) return Alert.alert('Not allowed', 'Only the owner can delete this post.');
     Alert.alert('Delete post', 'Are you sure? This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -151,7 +161,7 @@ export default function PostDetail() {
         },
       },
     ]);
-  }, [post, router]);
+  }, [post,isOwner, router]);
 
   if (loading) {
     return (
@@ -163,7 +173,7 @@ export default function PostDetail() {
 
   if (!post) return null;
 
-  const bottomPad = 24 + insets.bottom + (Platform.OS === 'ios' && visible ? offset : 0);
+  const bottomPad = 24 + insets.bottom;
 
   return (
     <SafeAreaView style={{ flex:1, backgroundColor: theme.bg }}>
@@ -183,22 +193,34 @@ export default function PostDetail() {
             {post.category} • {post.status}
           </Text>
 
-          <Text style={{ color: theme.text, marginBottom: 6 }}>Title</Text>
-          <TextInput
-            style={{ borderWidth:1, borderRadius:10, padding:12, backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text, marginBottom:12 }}
-            value={title}
-            onChangeText={setTitle}
-            returnKeyType="next"
-            blurOnSubmit={false}
-          />
+         <Text style={{ color: theme.text, marginBottom: 6 }}>Title</Text>
+         <TextInput
+           style={{
+             borderWidth:1, borderRadius:10, padding:12,
+             backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text,
+             marginBottom:12, opacity: isOwner ? 1 : 0.6
+           }}
+           value={title}
+           onChangeText={isOwner ? setTitle : undefined}
+           editable={isOwner}
+           returnKeyType="next"
+           blurOnSubmit={false}
+         />
+
 
           <Text style={{ color: theme.text, marginBottom: 6 }}>Description</Text>
           <TextInput
-            style={{ borderWidth:1, borderRadius:10, padding:12, minHeight:100, backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text, marginBottom:12 }}
+            style={{
+              borderWidth:1, borderRadius:10, padding:12, minHeight:100,
+              backgroundColor:theme.inputBg, borderColor:theme.border, color:theme.text,
+              marginBottom:12, opacity: isOwner ? 1 : 0.6
+            }}
             value={description}
-            onChangeText={setDescription}
+            onChangeText={isOwner ? setDescription : undefined}
+            editable={isOwner}
             multiline
           />
+
 
           {fieldConfigs.map((cfg, idx) => (
             <Field
@@ -209,31 +231,41 @@ export default function PostDetail() {
               keyboardType={cfg.keyboardType}
               onChange={onChangeField}
               theme={theme}
-              // 🔹 Ensure buttons show when user focuses the last field
-              onFocus={idx === fieldConfigs.length - 1 ? () => scrollRef.current?.scrollToEnd({ animated: true }) : undefined}
+              editable={isOwner}
+              onFocus={
+                isOwner && idx === fieldConfigs.length - 1
+                  ? () => scrollRef.current?.scrollToEnd({ animated: true })
+                  : undefined
+              }
             />
           ))}
 
-          {/* Inline footer (part of scroll content) */}
-          <View style={{ height: 12 }} />
-          <View
-            style={{
-              borderWidth: 1,
-              borderColor: theme.border2,
-              backgroundColor: theme.card,
-              borderRadius: 12,
-              padding: 8,
-              flexDirection: 'row',
-              gap: 10,
-            }}
-          >
-            <TouchableOpacity onPress={onSave} style={{ backgroundColor: theme.success, paddingVertical:12, borderRadius:10, flex:1 }}>
-              <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onDelete} style={{ backgroundColor: theme.danger, paddingVertical:12, borderRadius:10 }}>
-              <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Delete</Text>
-            </TouchableOpacity>
-          </View>
+
+          {isOwner ? (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border2,
+                backgroundColor: theme.card,
+                borderRadius: 12,
+                padding: 8,
+                flexDirection: 'row',
+                gap: 10,
+              }}
+            >
+              <TouchableOpacity onPress={onSave} style={{ backgroundColor: theme.success, paddingVertical:12, borderRadius:10, flex:1 }}>
+                <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onDelete} style={{ backgroundColor: theme.danger, paddingVertical:12, borderRadius:10 }}>
+                <Text style={{ color:'#fff', textAlign:'center', fontWeight:'600' }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={{ textAlign:'center', color: theme.sub, marginTop: 12 }}>
+              Read-only view — only the owner can edit this post.
+            </Text>
+          )}
+
 
           <View style={{ height: 8 }} />
         </ScrollView>
@@ -241,3 +273,9 @@ export default function PostDetail() {
     </SafeAreaView>
   );
 }
+
+
+
+
+
+
