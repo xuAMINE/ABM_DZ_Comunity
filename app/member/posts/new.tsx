@@ -74,7 +74,7 @@ export default function NewPost() {
         category, title, description, groupId: 'default', details, status: 'pending',
       } as any);
       Alert.alert('Submitted', 'Your post is awaiting approval.');
-      router.replace('/member/posts/page');
+      router.replace('/member/posts/homepage');
     } catch (e:any) {
       Alert.alert('Error', e.message);
     }
