@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(ownerId) { return isSignedIn() && request.auth.uid == ownerId; }
+
+    /* MEMBERS (readable for feed display) */
+    match /members/{uid} {
+      allow read: if true; // everyone can read basic member info
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update, delete: if isOwner(uid);
+    }
+
+    /* POSTS (public feed for signed-in users) */
+    match /posts/{postId} {
+      allow read: if true; // public feed
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data.ownerId);
+    }
+  }
+}
+
+
+

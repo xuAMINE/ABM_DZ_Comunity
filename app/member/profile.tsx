@@ -1,50 +1,380 @@
 // app/member/profile.tsx
-import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, ActivityIndicator, Image } from 'react-native';
-import { onAuthStateChanged } from 'firebase/auth';
+
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  Image,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+} from "react-native";
+
+import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   query,
   where,
-  orderBy,
   getDocs,
   doc,
   getDoc,
-} from 'firebase/firestore';
+  deleteDoc,
+} from "firebase/firestore";
 
-import { auth, db } from '@/lib/firebase';
-import { useAppTheme } from '@/lib/theme';
+import { auth, db } from "@/lib/firebase";
+import { useAppTheme } from "@/lib/theme";
+import { Feather } from "@expo/vector-icons";
+import { Link, useRouter } from "expo-router";
 
-type MemberProfile = {
-  displayName?: string;
-  bio?: string;
-  location?: string; // city
+// ---------------------------------------------------
+// TYPES
+// ---------------------------------------------------
+
+export type MemberProfile = {
+  fullName?: string;
+  email?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   photoURL?: string;
+  createdAt?: any; // Firestore timestamp
 };
 
-type Post = {
+
+export type Post = {
   id: string;
-  content?: string;
+  title?: string;
+  description?: string;
   category?: string;
   status?: string;
-  createdAt?: any;
+  imageUrl?: string;
+  authorId?: string;
+  authorName?: string;
+  createdAt?: any; // Firestore timestamp
 };
 
-type ActivityItem = {
-  id: string;
-  type: 'like' | 'comment';
-  postTitle?: string;
-  createdAt?: any;
+type PillTone = "default" | "muted" | "success" | "warning" | "danger";
+
+type PillProps = {
+  label: string;
+  tone?: PillTone;
 };
+
+type PostCardProps = {
+  item: Post;
+  onDelete: (id: string) => void;
+};
+
+type ComposerCardProps = {
+  selectedCat: string;
+  onSelectCat: (cat: string) => void;
+};
+
+// ---------------------------------------------------
+// UTILITIES
+// ---------------------------------------------------
+
+function timeAgo(ts?: any) {
+  try {
+    if (!ts) return "";
+    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(d.getTime())) return "";
+
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`;
+    const dd = Math.floor(h / 24);
+    return `${dd}d`;
+  } catch {
+    return "";
+  }
+}
+
+function statusTone(s?: string): PillTone {
+  switch (s) {
+    case "approved":
+      return "success";
+    case "pending":
+      return "warning";
+    case "rejected":
+      return "danger";
+    default:
+      return "muted";
+  }
+}
+
+// ---------------------------------------------------
+// Pill Badge Component
+// ---------------------------------------------------
+
+function Pill({ label, tone = "default" }: PillProps) {
+  const { theme, isDark } = useAppTheme();
+
+  const palette: Record<PillTone, { bg: string; fg: string; border: string }> = {
+    default: { bg: theme.card, fg: theme.text, border: theme.border },
+    muted: {
+      bg: isDark ? "#111827" : "#f3f4f6",
+      fg: isDark ? "#cbd5e1" : "#475569",
+      border: theme.border,
+    },
+    success: {
+      bg: isDark ? "#064e3b" : "#ecfdf5",
+      fg: isDark ? "#a7f3d0" : "#065f46",
+      border: isDark ? "#065f46" : "#a7f3d0",
+    },
+    warning: {
+      bg: isDark ? "#78350f" : "#fffbeb",
+      fg: isDark ? "#fde68a" : "#92400e",
+      border: isDark ? "#92400e" : "#fcd34d",
+    },
+    danger: {
+      bg: isDark ? "#7f1d1d" : "#fef2f2",
+      fg: isDark ? "#fecaca" : "#991b1b",
+      border: isDark ? "#ef4444" : "#fecaca",
+    },
+  };
+
+  const c = palette[tone];
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.bg,
+      }}
+    >
+      <Text style={{ color: c.fg, fontSize: 12 }}>{label}</Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------
+// Post Card Component
+// ---------------------------------------------------
+
+function PostCard({ item, onDelete }: PostCardProps) {
+  const { theme } = useAppTheme();
+
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: 12,
+        padding: 12,
+        backgroundColor: theme.card,
+      }}
+    >
+      {/* HEADER */}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            justifyContent: "center",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Feather name="user" size={18} color={theme.text} />
+        </View>
+
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ fontWeight: "700", color: theme.text }}>
+            {item.authorName ?? "You"}
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.placeholder }}>
+            {timeAgo(item.createdAt)} ago
+          </Text>
+        </View>
+
+        {/* EDIT */}
+        <Link
+          href={{
+            pathname: "/member/posts/[id]",
+            params: { id: item.id },
+          }}
+          asChild
+        >
+          <TouchableOpacity style={{ marginRight: 10 }}>
+            <Feather name="edit" size={20} color={theme.primary} />
+          </TouchableOpacity>
+        </Link>
+
+        {/* DELETE */}
+        <TouchableOpacity onPress={() => onDelete(item.id)}>
+          <Feather name="trash" size={20} color="red" />
+        </TouchableOpacity>
+      </View>
+
+      {/* BODY */}
+      {item.title ? (
+        <Text
+          style={{
+            marginTop: 10,
+            fontSize: 16,
+            fontWeight: "600",
+            color: theme.text,
+          }}
+        >
+          {item.title}
+        </Text>
+      ) : null}
+
+      {item.description ? (
+        <Text style={{ marginTop: 6, color: theme.text }}>
+          {item.description}
+        </Text>
+      ) : null}
+
+      {item.imageUrl ? (
+        <Image
+          source={{ uri: String(item.imageUrl) }}
+          style={{ height: 180, borderRadius: 10, marginTop: 10 }}
+        />
+      ) : null}
+
+      {/* BADGES */}
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 8,
+          marginTop: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        {item.category && <Pill label={item.category} tone="muted" />}
+        {item.status && (
+          <Pill label={item.status} tone={statusTone(item.status)} />
+        )}
+      </View>
+
+      <View style={{ marginTop: 10 }}>
+        <Link
+          href={{ pathname: "/member/posts/[id]", params: { id: item.id } }}
+        >
+          <Text style={{ color: theme.primary }}>View details</Text>
+        </Link>
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------
+// Composer Component
+// ---------------------------------------------------
+
+const CATS = ["janazah", "events", "jobs", "pub"] as const;
+
+function ComposerCard({
+  selectedCat,
+  onSelectCat,
+}: ComposerCardProps) {
+  const router = useRouter();
+  const { theme } = useAppTheme();
+
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: 12,
+        padding: 12,
+        backgroundColor: theme.card,
+      }}
+    >
+      <TouchableOpacity
+        onPress={() =>
+          router.push({
+            pathname: "/member/posts/new",
+            params: { category: selectedCat },
+          })
+        }
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          borderWidth: 1,
+          borderColor: theme.border,
+          borderRadius: 999,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+        }}
+      >
+        <Feather name="type" size={18} />
+        <Text style={{ color: theme.placeholder }}>Create a new post…</Text>
+      </TouchableOpacity>
+
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          marginTop: 12,
+        }}
+      >
+        {CATS.map((c) => {
+          const active = c === selectedCat;
+          return (
+            <TouchableOpacity
+              key={c}
+              onPress={() => onSelectCat(c)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: active ? theme.primary : theme.border,
+                backgroundColor: active ? theme.primary : theme.card,
+              }}
+            >
+              <Text style={{ color: active ? "#fff" : theme.text }}>{c}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------
+// MAIN SCREEN
+// ---------------------------------------------------
 
 export default function ProfileScreen() {
   const { theme } = useAppTheme();
-  const [loading, setLoading] = useState(true);
 
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<MemberProfile>({});
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [catForNew, setCatForNew] = useState<string>("janazah");
 
+  // DELETE POST
+  const deletePost = async (id: string) => {
+    Alert.alert("Delete Post", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteDoc(doc(db, "posts", id));
+          setPosts((prev) => prev.filter((p) => p.id !== id));
+        },
+      },
+    ]);
+  };
+
+  // LOAD PROFILE + POSTS
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -52,65 +382,43 @@ export default function ProfileScreen() {
         return;
       }
 
-      try {
-        // 1) Load member profile document
-        const memberRef = doc(db, 'members', user.uid);
-        const memberSnap = await getDoc(memberRef);
-        if (memberSnap.exists()) {
-          setProfile(memberSnap.data() as MemberProfile);
-        } else {
-          setProfile({
-            displayName: user.displayName || user.email || 'Member',
-          });
-        }
+      // Load Profile
+      const snap = await getDoc(doc(db, "members", user.uid));
+      setProfile(
+        snap.exists()
+          ? (snap.data() as MemberProfile)
+          : { fullName: user.displayName || user.email || "Member" }
+      );
 
-        // 2) Load posts created by this user
-        const postsQ = query(
-          collection(db, 'posts'),
-          where('authorId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-        const postsSnap = await getDocs(postsQ);
-        const userPosts: Post[] = postsSnap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        }));
-        setPosts(userPosts);
 
-        // 3) Load activity (likes + comments)
-        const likesQ = query(
-          collection(db, 'likes'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-        const likesSnap = await getDocs(likesQ);
-        const likeItems: ActivityItem[] = likesSnap.docs.map((d) => ({
-          id: d.id,
-          type: 'like',
-          ...(d.data() as any),
-        }));
+      // Load Posts
+      const q = query(
+        collection(db, "posts"),
+        where("authorId", "==", user.uid)
+      );
+      const docsSnap = await getDocs(q);
 
-        const commentsQ = query(
-          collection(db, 'comments'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-        const commentsSnap = await getDocs(commentsQ);
-        const commentItems: ActivityItem[] = commentsSnap.docs.map((d) => ({
-          id: d.id,
-          type: 'comment',
-          ...(d.data() as any),
-        }));
+      const items: Post[] = docsSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      }));
 
-        setActivities([...likeItems, ...commentItems]);
-      } catch (err) {
-        console.error('Error loading profile page', err);
-      } finally {
-        setLoading(false);
-      }
+      // Sort by createdAt desc
+      items.sort((a, b) => {
+        const ta =
+          a.createdAt?.toMillis?.() ??
+          (a.createdAt?.seconds || 0) * 1000;
+        const tb =
+          b.createdAt?.toMillis?.() ??
+          (b.createdAt?.seconds || 0) * 1000;
+        return tb - ta;
+      });
+
+      setPosts(items);
+      setLoading(false);
     });
 
-    return () => unsub();
+    return unsub;
   }, []);
 
   if (loading) {
@@ -118,9 +426,9 @@ export default function ProfileScreen() {
       <View
         style={{
           flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
           backgroundColor: theme.bg,
-          justifyContent: 'center',
-          alignItems: 'center',
         }}
       >
         <ActivityIndicator />
@@ -129,285 +437,133 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView
+    <FlatList
       style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-    >
-      {/* PROFILE CARD */}
-      <View
-        style={{
-          backgroundColor: theme.card,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
-          maxWidth: 420, // phone-like width
-          width: '100%',
-          alignSelf: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.1,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 4,
-        }}
-      >
-        {/* Avatar + name */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {profile.photoURL ? (
-            <Image
-              source={{ uri: profile.photoURL }}
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                marginRight: 12,
-              }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                backgroundColor: theme.primary,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginRight: 12,
-              }}
-            >
-              <Text
-                style={{
-                  color: '#fff',
-                  fontSize: 24,
-                  fontWeight: '700',
-                }}
-              >
-                {(profile.displayName || 'M')[0].toUpperCase()}
-              </Text>
-            </View>
-          )}
-
-          <View style={{ flex: 1 }}>
-            {/* Name */}
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: '700',
-                color: theme.text,
-              }}
-            >
-              {profile.displayName || 'Your name'}
-            </Text>
-
-            {/* Email (smaller) */}
-            {!!auth.currentUser?.email && (
-              <Text
-                style={{
-                  color: theme.muted,
-                  marginTop: 2,
-                  fontSize: 14,
-                }}
-              >
-                {auth.currentUser.email}
-              </Text>
-            )}
-
-            {/* City (inline small) */}
-            {profile.location && (
-              <Text style={{ color: theme.muted, marginTop: 2 }}>
-                📍 {profile.location}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {/* BIO & CITY */}
-        <View style={{ marginTop: 12 }}>
-          <Text
-            style={{ color: theme.text, fontWeight: '600', marginBottom: 4 }}
-          >
-            About
-          </Text>
-          <Text style={{ color: theme.muted }}>
-            {profile.bio || 'No bio added yet.'}
-          </Text>
-
-          <Text
-            style={{
-              color: theme.text,
-              fontWeight: '600',
-              marginTop: 12,
-              marginBottom: 4,
-            }}
-          >
-            City
-          </Text>
-          <Text style={{ color: theme.muted }}>
-            {profile.location || 'No city added yet.'}
-          </Text>
-        </View>
-
-        {/* Badges row */}
-        <View
-          style={{
-            flexDirection: 'row',
-            marginTop: 12,
-            flexWrap: 'wrap',
-          }}
-        >
+      contentContainerStyle={{ padding: 16 }}
+      ListHeaderComponent={
+        <>
+          {/* PROFILE CARD */}
           <View
             style={{
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 999,
-              backgroundColor: '#E5F0FF',
-              marginRight: 8,
-              marginBottom: 4,
-            }}
-          >
-            <Text style={{ color: theme.primary, fontSize: 12 }}>
-              DZ Community
-            </Text>
-          </View>
-          <View
-            style={{
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 999,
-              backgroundColor: '#F3F4F6',
-              marginBottom: 4,
-            }}
-          >
-            <Text style={{ color: theme.muted, fontSize: 12 }}>
-              Joined 2025
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* STATS ROW */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          maxWidth: 420,
-          alignSelf: 'center',
-          marginBottom: 16,
-        }}
-      >
-        {[
-          { label: 'Posts', value: posts.length },
-          {
-            label: 'Likes',
-            value: activities.filter((a) => a.type === 'like').length,
-          },
-          {
-            label: 'Comments',
-            value: activities.filter((a) => a.type === 'comment').length,
-          },
-        ].map((stat) => (
-          <View
-            key={stat.label}
-            style={{
-              flex: 1,
-              marginHorizontal: 4,
               backgroundColor: theme.card,
-              borderRadius: 12,
-              paddingVertical: 10,
-              alignItems: 'center',
+              padding: 16,
+              borderRadius: 16,
+              marginBottom: 16,
             }}
           >
-            <Text
-              style={{ color: theme.text, fontWeight: '700', fontSize: 18 }}
-            >
-              {stat.value}
-            </Text>
-            <Text style={{ color: theme.muted, fontSize: 12 }}>
-              {stat.label}
-            </Text>
-          </View>
-        ))}
-      </View>
+            {/* HEADER */}
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {/* Avatar */}
+              {profile.photoURL ? (
+                <Image
+                  source={{ uri: profile.photoURL }}
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    marginRight: 12,
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: theme.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 12,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
+                    {(profile.fullName || "M")[0].toUpperCase()}
+                  </Text>
+                </View>
+              )}
 
-      {/* POSTS SECTION */}
-      <View style={{ maxWidth: 420, alignSelf: 'center', width: '100%' }}>
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: theme.text,
-            marginBottom: 8,
-          }}
-        >
-          My Posts
-        </Text>
-        {posts.length === 0 ? (
-          <Text style={{ color: theme.muted, marginBottom: 16 }}>
-            You haven’t created any posts yet.
-          </Text>
-        ) : (
-          posts.map((post) => (
-            <View
-              key={post.id}
-              style={{
-                backgroundColor: theme.card,
-                padding: 12,
-                borderRadius: 12,
-                marginBottom: 10,
-              }}
-            >
-              <Text style={{ color: theme.text, fontWeight: '600' }}>
-                {post.category || 'Post'}
-              </Text>
-              <Text style={{ color: theme.muted, marginTop: 2 }}>
-                {post.status && `Status: ${post.status}`}
-              </Text>
-              <Text style={{ color: theme.text, marginTop: 6 }}>
-                {post.content}
-              </Text>
+              {/* NAME + MEMBER SINCE */}
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "700",
+                    color: theme.text,
+                  }}
+                >
+                  {profile.fullName || "Member"}
+                </Text>
+
+                {/* MEMBER SINCE */}
+                {profile.createdAt ? (
+                  <Text style={{ color: theme.placeholder, marginTop: 4 }}>
+                    Member since{" "}
+                    {profile.createdAt?.toDate
+                      ? profile.createdAt.toDate().toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : ""}
+                  </Text>
+                ) : (
+                  <Text style={{ color: theme.placeholder, marginTop: 4 }}>
+                    New member
+                  </Text>
+                )}
+              </View>
             </View>
-          ))
-        )}
 
-        {/* ACTIVITY SECTION */}
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: theme.text,
-            marginTop: 16,
-            marginBottom: 8,
-          }}
-        >
-          My Activity
-        </Text>
-        {activities.length === 0 ? (
-          <Text style={{ color: theme.muted }}>
-            No likes or comments yet.
-          </Text>
-        ) : (
-          activities.map((a) => (
-            <View
-              key={a.id}
-              style={{
-                backgroundColor: theme.card,
-                padding: 12,
-                borderRadius: 12,
-                marginBottom: 10,
-              }}
-            >
-              <Text style={{ color: theme.text, fontWeight: '600' }}>
-                {a.type === 'like' ? 'Liked a post' : 'Commented on a post'}
+            {/* LOCATION */}
+            <View style={{ marginTop: 16 }}>
+              <Text
+                style={{
+                  fontWeight: "600",
+                  color: theme.text,
+                  marginBottom: 4,
+                }}
+              >
+                Location
               </Text>
-              {a.postTitle && (
-                <Text style={{ color: theme.text, marginTop: 4 }}>
-                  {a.postTitle}
+
+              {profile.state || profile.city ? (
+                <Text style={{ color: theme.placeholder }}>
+                  {profile.city ? `${profile.city}, ` : ""}
+                  {profile.state}
+                </Text>
+              ) : (
+                <Text style={{ color: theme.placeholder }}>
+                  Location not provided
                 </Text>
               )}
             </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
+          </View>
+
+
+          {/* COMPOSER */}
+          <ComposerCard
+            selectedCat={catForNew}
+            onSelectCat={setCatForNew}
+          />
+
+          <Text
+            style={{
+              marginTop: 20,
+              fontSize: 18,
+              fontWeight: "600",
+              color: theme.text,
+            }}
+          >
+            My Posts
+          </Text>
+        </>
+      }
+      data={posts}
+      keyExtractor={(i) => i.id}
+      renderItem={({ item }) => (
+        <PostCard item={item} onDelete={deletePost} />
+      )}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      ListFooterComponent={<View style={{ height: 40 }} />}
+    />
   );
 }
-
