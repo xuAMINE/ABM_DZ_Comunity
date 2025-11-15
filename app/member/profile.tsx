@@ -162,6 +162,8 @@ function Pill({ label, tone = "default" }: PillProps) {
 
 function PostCard({ item, onDelete }: PostCardProps) {
   const { theme } = useAppTheme();
+  const [expanded, setExpanded] = useState(false);
+  const MAX_CHARS = 200;
 
   return (
     <View
@@ -173,24 +175,25 @@ function PostCard({ item, onDelete }: PostCardProps) {
         backgroundColor: theme.card,
       }}
     >
-      {/* HEADER */}
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
             justifyContent: "center",
             alignItems: "center",
             borderWidth: 1,
             borderColor: theme.border,
+            backgroundColor: theme.card,
           }}
         >
-          <Feather name="user" size={18} color={theme.text} />
+          <Feather name="user" size={20} color={theme.text} />
         </View>
 
         <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700", color: theme.text }}>
+          <Text style={{ fontWeight: "700", color: theme.text, fontSize: 14 }}>
             {item.authorName ?? "You"}
           </Text>
           <Text style={{ fontSize: 12, color: theme.placeholder }}>
@@ -198,7 +201,7 @@ function PostCard({ item, onDelete }: PostCardProps) {
           </Text>
         </View>
 
-        {/* EDIT */}
+        {/* Edit + Delete Icons */}
         <Link
           href={{
             pathname: "/member/posts/[id]",
@@ -210,18 +213,16 @@ function PostCard({ item, onDelete }: PostCardProps) {
             <Feather name="edit" size={20} color={theme.primary} />
           </TouchableOpacity>
         </Link>
-
-        {/* DELETE */}
         <TouchableOpacity onPress={() => onDelete(item.id)}>
           <Feather name="trash" size={20} color="red" />
         </TouchableOpacity>
       </View>
 
-      {/* BODY */}
-      {item.title ? (
+      {/* Title */}
+      {item.title && (
         <Text
           style={{
-            marginTop: 10,
+            marginTop: 4,
             fontSize: 16,
             fontWeight: "600",
             color: theme.text,
@@ -229,46 +230,71 @@ function PostCard({ item, onDelete }: PostCardProps) {
         >
           {item.title}
         </Text>
-      ) : null}
+      )}
 
-      {item.description ? (
-        <Text style={{ marginTop: 6, color: theme.text }}>
-          {item.description}
+      {/* Description with “See more” */}
+      {item.description && (
+        <Text style={{ marginTop: 6, color: theme.text, lineHeight: 20 }}>
+          {expanded || item.description.length <= MAX_CHARS
+            ? item.description
+            : `${item.description.slice(0, MAX_CHARS)}...`}
+          {item.description.length > MAX_CHARS && !expanded && (
+            <Text
+              onPress={() => setExpanded(true)}
+              style={{ color: theme.primary, fontWeight: "500" }}
+            >
+              {" "}See more
+            </Text>
+          )}
         </Text>
-      ) : null}
+      )}
 
-      {item.imageUrl ? (
+      {/* Image */}
+      {item.imageUrl && (
         <Image
           source={{ uri: String(item.imageUrl) }}
-          style={{ height: 180, borderRadius: 10, marginTop: 10 }}
+          style={{ height: 220, borderRadius: 12, marginTop: 10 }}
+          resizeMode="cover"
         />
-      ) : null}
+      )}
 
-      {/* BADGES */}
+      {/* Badges */}
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+        {item.category && <Pill label={item.category} tone="muted" />}
+        {item.status && <Pill label={item.status} tone={statusTone(item.status)} />}
+      </View>
+
+      {/* Actions */}
       <View
         style={{
           flexDirection: "row",
-          gap: 8,
-          marginTop: 10,
-          flexWrap: "wrap",
+          justifyContent: "space-around",
+          marginTop: 12,
+          paddingTop: 10,
+          borderTopWidth: 1,
+          borderTopColor: theme.border,
         }}
       >
-        {item.category && <Pill label={item.category} tone="muted" />}
-        {item.status && (
-          <Pill label={item.status} tone={statusTone(item.status)} />
-        )}
+        <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Feather name="thumbs-up" size={18} color={theme.text} />
+          <Text style={{ color: theme.text }}>Like</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Feather name="message-circle" size={18} color={theme.text} />
+          <Text style={{ color: theme.text }}>Comment</Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Optional: View Details */}
       <View style={{ marginTop: 10 }}>
-        <Link
-          href={{ pathname: "/member/posts/[id]", params: { id: item.id } }}
-        >
+        <Link href={{ pathname: "/member/posts/[id]", params: { id: item.id } }}>
           <Text style={{ color: theme.primary }}>View details</Text>
         </Link>
       </View>
     </View>
   );
 }
+
 
 // ---------------------------------------------------
 // Composer Component
@@ -444,99 +470,78 @@ export default function ProfileScreen() {
         <>
           {/* PROFILE CARD */}
           <View
-            style={{
-              backgroundColor: theme.card,
-              padding: 16,
-              borderRadius: 16,
-              marginBottom: 16,
-            }}
-          >
-            {/* HEADER */}
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {/* Avatar */}
-              {profile.photoURL ? (
-                <Image
-                  source={{ uri: profile.photoURL }}
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    marginRight: 12,
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    backgroundColor: theme.primary,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginRight: 12,
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
-                    {(profile.fullName || "M")[0].toUpperCase()}
-                  </Text>
-                </View>
-              )}
+  style={{
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    alignItems: "center",
+  }}
+>
+  {/* Avatar Centered */}
+  {profile.photoURL ? (
+    <Image
+      source={{ uri: profile.photoURL }}
+      style={{
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginBottom: 12,
+      }}
+    />
+  ) : (
+    <View
+      style={{
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: theme.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 12,
+      }}
+    >
+      <Text style={{ color: "#fff", fontSize: 30, fontWeight: "700" }}>
+        {(profile.fullName || "M")[0].toUpperCase()}
+      </Text>
+    </View>
+  )}
 
-              {/* NAME + MEMBER SINCE */}
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: "700",
-                    color: theme.text,
-                  }}
-                >
-                  {profile.fullName || "Member"}
-                </Text>
+  {/* Name */}
+  <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text, textAlign: "center" }}>
+    {profile.fullName || "Member"}
+  </Text>
 
-                {/* MEMBER SINCE */}
-                {profile.createdAt ? (
-                  <Text style={{ color: theme.placeholder, marginTop: 4 }}>
-                    Member since{" "}
-                    {profile.createdAt?.toDate
-                      ? profile.createdAt.toDate().toLocaleDateString("en-US", {
-                          month: "long",
-                          year: "numeric",
-                        })
-                      : ""}
-                  </Text>
-                ) : (
-                  <Text style={{ color: theme.placeholder, marginTop: 4 }}>
-                    New member
-                  </Text>
-                )}
-              </View>
-            </View>
+  {/* Member since */}
+  {profile.createdAt ? (
+    <Text style={{ color: theme.placeholder, marginTop: 4, textAlign: "center" }}>
+      Member since{" "}
+      {profile.createdAt?.toDate
+        ? profile.createdAt.toDate().toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          })
+        : ""}
+    </Text>
+  ) : (
+    <Text style={{ color: theme.placeholder, marginTop: 4, textAlign: "center" }}>
+      New member
+    </Text>
+  )}
 
-            {/* LOCATION */}
-            <View style={{ marginTop: 16 }}>
-              <Text
-                style={{
-                  fontWeight: "600",
-                  color: theme.text,
-                  marginBottom: 4,
-                }}
-              >
-                Location
-              </Text>
+  {/* Location */}
+  <View style={{ marginTop: 12 }}>
+    <Text style={{ fontWeight: "600", color: theme.text, marginBottom: 4, textAlign: "center" }}>
+      Location
+    </Text>
+    <Text style={{ color: theme.placeholder, textAlign: "center" }}>
+      {profile.city || profile.state
+        ? `${profile.city ? `${profile.city}, ` : ""}${profile.state}`
+        : "Location not provided"}
+    </Text>
+  </View>
+</View>
 
-              {profile.state || profile.city ? (
-                <Text style={{ color: theme.placeholder }}>
-                  {profile.city ? `${profile.city}, ` : ""}
-                  {profile.state}
-                </Text>
-              ) : (
-                <Text style={{ color: theme.placeholder }}>
-                  Location not provided
-                </Text>
-              )}
-            </View>
-          </View>
 
 
           {/* COMPOSER */}

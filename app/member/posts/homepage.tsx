@@ -104,6 +104,11 @@ function statusTone(s?: string): "muted" | "success" | "warning" | "danger" | "d
 
 function PostCard({ item }: { item: any }) {
   const { theme } = useAppTheme();
+  const [expanded, setExpanded] = useState(false);
+  const MAX_CHARS = 200;
+
+  const isOwner = auth.currentUser?.uid === item.ownerId;
+
   return (
     <View
       style={{
@@ -114,23 +119,24 @@ function PostCard({ item }: { item: any }) {
         backgroundColor: theme.card,
       }}
     >
-      {/* header */}
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
+      {/* Header: Avatar + Author Info */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
             alignItems: "center",
             justifyContent: "center",
             borderWidth: 1,
             borderColor: theme.border,
+            backgroundColor: theme.card,
           }}
         >
-          <Feather name="user" size={18} color={theme.text} />
+          <Feather name="user" size={20} color={theme.text} />
         </View>
         <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700", color: theme.text }}>
+          <Text style={{ fontWeight: "700", color: theme.text, fontSize: 14 }}>
             {item.authorName ?? "Member"}
           </Text>
           <Text style={{ fontSize: 12, color: theme.placeholder }}>
@@ -143,11 +149,11 @@ function PostCard({ item }: { item: any }) {
         <Feather name="more-horizontal" size={20} color={theme.text} />
       </View>
 
-      {/* title & description */}
+      {/* Title */}
       {item.title ? (
         <Text
           style={{
-            marginTop: 10,
+            marginTop: 4,
             fontSize: 16,
             fontWeight: "600",
             color: theme.text,
@@ -156,52 +162,69 @@ function PostCard({ item }: { item: any }) {
           {item.title}
         </Text>
       ) : null}
+
+      {/* Description with “See more” */}
       {item.description ? (
-        <Text style={{ marginTop: 6, color: theme.text }}>{item.description}</Text>
+        <Text style={{ marginTop: 6, color: theme.text, lineHeight: 20 }}>
+          {expanded || item.description.length <= MAX_CHARS
+            ? item.description
+            : `${item.description.slice(0, MAX_CHARS)}...`}
+          {item.description.length > MAX_CHARS && !expanded && (
+            <Text
+              onPress={() => setExpanded(true)}
+              style={{ color: theme.primary, fontWeight: "500" }}
+            >
+              {" "}See more
+            </Text>
+          )}
+        </Text>
       ) : null}
+
+      {/* Post image */}
       {item.imageUrl ? (
         <Image
           source={{ uri: String(item.imageUrl) }}
-          style={{ height: 180, borderRadius: 10, marginTop: 10 }}
+          style={{ height: 220, borderRadius: 12, marginTop: 10 }}
+          resizeMode="cover"
         />
       ) : null}
 
-      {/* badges */}
+      {/* Tags: Category, Status, Owner */}
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+        {item.category && <Pill label={String(item.category)} tone="muted" />}
+        {item.status && <Pill label={String(item.status)} tone={statusTone(item.status)} />}
+        {isOwner && <Pill label="My post" tone="success" />}
+      </View>
+
+      {/* Action Bar: Like / Comment */}
       <View
         style={{
           flexDirection: "row",
-          gap: 8,
-          marginTop: 10,
-          flexWrap: "wrap",
+          justifyContent: "space-around",
+          marginTop: 12,
+          paddingTop: 10,
+          borderTopWidth: 1,
+          borderTopColor: theme.border,
         }}
       >
-        {item.category ? <Pill label={String(item.category)} tone="muted" /> : null}
-        {item.status ? <Pill label={String(item.status)} tone={statusTone(item.status)} /> : null}
-        {/* “My post” tag if owned by current user */}
-        {auth.currentUser && item.ownerId === auth.currentUser.uid && (
-          <Pill label="My post" tone="success" />
-        )}
-      </View>
-
-      {/* actions (placeholders) */}
-      <View style={{ flexDirection: "row", gap: 18, marginTop: 12 }}>
         <TouchableOpacity
           style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
           activeOpacity={0.7}
         >
-          <Feather name="heart" size={20} color={theme.text} />
-          <Text style={{ color: theme.text }}>Favorite</Text>
+          <Feather name="thumbs-up" size={18} color={theme.text} />
+          <Text style={{ color: theme.text }}>Like</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
           activeOpacity={0.7}
         >
-          <Feather name="message-circle" size={20} color={theme.text} />
+          <Feather name="message-circle" size={18} color={theme.text} />
           <Text style={{ color: theme.text }}>Comment</Text>
         </TouchableOpacity>
       </View>
 
-      {/* details */}
+      {/* Optional View Details */}
       <View style={{ marginTop: 10 }}>
         <Link href={{ pathname: "/member/posts/[id]", params: { id: item.id } }}>
           <Text style={{ color: theme.primary }}>View details</Text>
@@ -210,6 +233,7 @@ function PostCard({ item }: { item: any }) {
     </View>
   );
 }
+
 
 function ComposerCard({
   selectedCat,

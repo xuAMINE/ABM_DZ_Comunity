@@ -31,9 +31,9 @@ function DrawerContent() {
           </TouchableOpacity>
         </Link>
 
-        <Link href="/member/settings" asChild>
+        <Link href="/member/account" asChild>
           <TouchableOpacity style={{ paddingVertical: 10 }}>
-            <Text style={{ color: theme.text, fontSize: 16 }}>Settings</Text>
+            <Text style={{ color: theme.text, fontSize: 16 }}>Account</Text>
           </TouchableOpacity>
         </Link>
       </View>
