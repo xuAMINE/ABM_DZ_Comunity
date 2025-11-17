@@ -147,24 +147,39 @@ const [hasMore, setHasMore] = useState(true);
 
 // Load initial 10 comments
 useEffect(() => {
-  loadMoreComments();
+  loadInitialComments();
 }, []);
+
+const loadInitialComments = async () => {
+  setLoadingComments(true);
+
+  const { comments: newest } = await getCommentsPaginated(item.id, 2);
+
+  setComments(newest);
+  setCursor(newest.length > 0 ? newest[newest.length - 1] : null);
+
+  // If we got only 2, we assume more exist → show “load more”
+  setHasMore(true);
+
+  setLoadingComments(false);
+};
 
 const loadMoreComments = async () => {
   if (loadingComments || !hasMore) return;
 
   setLoadingComments(true);
 
-  const { comments: newComments, cursor: newCursor } =
-    await getCommentsPaginated(item.id, 10, cursor);
+  // Load 10 latest comments FROM THE START
+  const { comments: tenComments, cursor: newCursor } =
+    await getCommentsPaginated(item.id, 10);
 
-  setComments((prev) => [...prev, ...newComments]);
-
+  setComments(tenComments);        // ⬅️ replace previous list
   setCursor(newCursor);
-  setHasMore(newComments.length === 10);
+  setHasMore(tenComments.length === 10);
 
   setLoadingComments(false);
 };
+
 
 const handleAddComment = async () => {
   if (!commentText.trim()) return;
