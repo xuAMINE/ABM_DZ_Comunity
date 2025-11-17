@@ -1,10 +1,28 @@
 // lib/posts.ts
+// lib/posts.ts
 import { auth, db } from './firebase';
+
 import {
-  addDoc, collection, serverTimestamp, updateDoc, doc, getDoc, getDocs,
-  query, where, limit, deleteDoc, DocumentData, QueryDocumentSnapshot,
-  orderBy,            // ✅ add this
-} from 'firebase/firestore';
+  addDoc,
+  collection,
+  serverTimestamp,
+  updateDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  limit,
+  deleteDoc,
+  DocumentData,
+  QueryDocumentSnapshot,
+  orderBy,
+  startAfter,
+  limit as firestoreLimit,
+  QueryConstraint,
+  setDoc,
+} from "firebase/firestore";
+
 import { getMemberProfile } from './member'; // ⬅️ add this
 import { Post } from '../types/post';
 
@@ -246,4 +264,114 @@ export async function getApprovedFeed(count = 50) {
     const tb = (b.createdAt as any)?.toMillis?.() ?? 0;
     return tb - ta;
   });
+}
+
+
+
+/** ------------------ LIKES ------------------ **/
+
+
+
+
+export async function toggleLike(postId: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not authenticated");
+
+  const likeRef = doc(db, "posts", postId, "likes", uid);
+
+  const snap = await getDoc(likeRef);
+
+  if (snap.exists()) {
+    await deleteDoc(likeRef);
+    return false;
+  } else {
+    await setDoc(likeRef, {
+      userId: uid,
+      createdAt: serverTimestamp(),
+    });
+    return true;
+  }
+}
+
+export async function getLikeCount(postId: string) {
+  const snap = await getDocs(collection(db, "posts", postId, "likes"));
+  return snap.size;
+}
+
+export async function isPostLikedByMe(postId: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return false;
+
+  const ref = doc(db, "posts", postId, "likes", uid);
+  const snap = await getDoc(ref);
+  return snap.exists();
+}
+
+
+/** ------------------ COMMENTS ------------------ **/
+
+export async function addComment(postId: string, text: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not authenticated");
+
+  const profileSnap = await getDoc(doc(db, "members", uid));
+  const profile = profileSnap.exists() ? profileSnap.data() : null;
+
+  const payload = {
+    userId: uid,
+    text,
+    authorName: profile?.fullName || "Member",
+    createdAt: serverTimestamp(),
+  };
+
+  await addDoc(collection(db, "posts", postId, "comments"), payload);
+}
+
+export async function getComments(postId: string) {
+  const q = query(
+    collection(db, "posts", postId, "comments"),
+    orderBy("createdAt", "asc")
+  );
+
+  const snap = await getDocs(q);
+
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as any),
+  }));
+}
+
+
+/** ------------------ INLINE COMMENTS (PAGINATED) ------------------ **/
+
+
+export async function getCommentsPaginated(
+  postId: string,
+  limitCount = 10,
+  cursor?: QueryDocumentSnapshot
+) {
+  const constraints: QueryConstraint[] = [
+    orderBy("createdAt", "asc"),
+  ];
+
+  if (cursor) {
+    constraints.push(startAfter(cursor));
+  }
+
+  constraints.push(firestoreLimit(limitCount));
+
+  const q = query(
+    collection(db, "posts", postId, "comments"),
+    ...constraints
+  );
+
+  const snap = await getDocs(q);
+
+  return {
+    comments: snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    })),
+    cursor: snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : undefined,
+  };
 }
