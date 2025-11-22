@@ -1,13 +1,14 @@
 // app/member/posts/view/[id].tsx
-import { useLocalSearchParams, Stack } from "expo-router";
+
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, ScrollView, RefreshControl } from "react-native";
-import { getPostById, updatePost, deletePost } from "@/lib/posts";
+
+import { getPostById } from "@/lib/posts";
 import { useAppTheme } from "@/lib/theme";
 import { PostCard } from "../homepage";
-
-// ⚠️ We will adjust your PostCard export in a moment
+import { TopBar } from "@/components/TopBar";
 
 export default function ViewPostScreen() {
   const { theme } = useAppTheme();
@@ -34,15 +35,20 @@ export default function ViewPostScreen() {
 
   if (!post)
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <SafeAreaView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
         <Text style={{ color: theme.text }}>Loading post...</Text>
       </SafeAreaView>
     );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: "Post" }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+      
+      {/* ⭐ Global Navigation Bar */}
+      <TopBar />
 
+      {/* ⭐ Content */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16 }}
@@ -50,7 +56,6 @@ export default function ViewPostScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* SHOW FULL POST WITH COMMENTS/LIKES JUST LIKE HOMEPAGE */}
         <PostCard item={post} onEdit={() => {}} onDelete={() => {}} />
       </ScrollView>
     </SafeAreaView>

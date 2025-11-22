@@ -1,3 +1,5 @@
+// app/member/posts/new.tsx
+
 import { useCallback, useMemo, useRef, useState, memo, useEffect } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 
@@ -25,6 +27,8 @@ import StickyFooter from '@/components/StickyFooter';
 import { FOOTER_HEIGHT, EXTRA_SPACER } from '@/constants/layout';
 import { useAppTheme } from '@/lib/theme';
 import type { Theme } from '@/constants/theme';
+
+import { TopBar } from "@/components/TopBar";   // ⭐ ADDED
 
 const CATS = ['janazah', 'events', 'jobs', 'pub'] as const;
 type Cat = typeof CATS[number];
@@ -151,7 +155,11 @@ export default function NewPost() {
   const bottomPad = FOOTER_HEIGHT + EXTRA_SPACER + insets.bottom;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+      
+      {/* ⭐ TOP BAR ADDED HERE */}
+      <TopBar />
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -193,7 +201,7 @@ export default function NewPost() {
               })}
             </View>
 
-            {/* Title & Description */}
+            {/* Title */}
             <Text style={{ marginBottom: 6, color: theme.text }}>Title</Text>
             <TextInput
               style={{
@@ -209,10 +217,9 @@ export default function NewPost() {
               placeholderTextColor={theme.placeholder}
               value={title}
               onChangeText={setTitle}
-              returnKeyType="next"
-              blurOnSubmit={false}
             />
 
+            {/* Description */}
             <Text style={{ marginBottom: 6, color: theme.text }}>Description</Text>
             <TextInput
               style={{
@@ -232,12 +239,16 @@ export default function NewPost() {
               multiline
             />
 
-            {/* Dynamic Fields */}
+            {/* Dynamic fields */}
             {fieldConfigs.map((cfg, idx) => {
               const isDateOrTime =
                 cfg.k.toLowerCase().includes('date') || cfg.k.toLowerCase().includes('time');
+
               const showPicker = () =>
-                setPicker({ key: cfg.k, mode: cfg.k.toLowerCase().includes('time') ? 'time' : 'date' });
+                setPicker({
+                  key: cfg.k,
+                  mode: cfg.k.toLowerCase().includes('time') ? 'time' : 'date'
+                });
 
               const displayValue = details[cfg.k]
                 ? cfg.k.toLowerCase().includes('date')
@@ -250,7 +261,7 @@ export default function NewPost() {
               return isDateOrTime ? (
                 <View key={cfg.k} style={{ marginBottom: 12 }}>
                   <Text style={{ marginBottom: 6, color: theme.text }}>{cfg.label}</Text>
-                  <TouchableOpacity onPress={showPicker} activeOpacity={0.8}>
+                  <TouchableOpacity onPress={showPicker}>
                     <View
                       style={{
                         borderWidth: 1,
@@ -261,7 +272,7 @@ export default function NewPost() {
                       }}
                     >
                       <Text style={{ color: displayValue ? theme.text : theme.placeholder }}>
-                        {displayValue || `Select ${cfg.label.toLowerCase()}`}
+                        {displayValue || `Select ${cfg.label}`}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -284,7 +295,6 @@ export default function NewPost() {
               );
             })}
 
-            {/* DateTime Picker */}
             {picker && (
               <DateTimePicker
                 value={details[picker.key] ? new Date(details[picker.key]) : new Date()}
@@ -306,7 +316,9 @@ export default function NewPost() {
               onPress={onSave}
               style={{ backgroundColor: theme.success, paddingVertical: 14, borderRadius: 10 }}
             >
-              <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Submit</Text>
+              <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
+                Submit
+              </Text>
             </TouchableOpacity>
           </StickyFooter>
         </View>

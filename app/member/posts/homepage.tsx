@@ -6,6 +6,9 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { deletePost, updatePost } from "@/lib/posts";
 import { isPostLikedByMe, toggleLike } from "@/lib/posts";
 import {addComment,getCommentsPaginated,} from "@/lib/posts";
+import { onSnapshot, collection } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 
 import DateTimePicker from "@react-native-community/datetimepicker";
 
@@ -200,18 +203,34 @@ const handleAddComment = async () => {
 };
 
 //////////////////////////////////////////////////////////////////////////////
-  useEffect(() => {
-    (async () => {
-      setLiked(await isPostLikedByMe(item.id));
-      setLikeCount(await getLikeCount(item.id));
-    })();
-  }, []);
+useEffect(() => {
+  if (!item?.id) return;
 
-  const onLike = async () => {
-    const nowLiked = await toggleLike(item.id);
-    setLiked(nowLiked);
-    setLikeCount((c) => (nowLiked ? c + 1 : c - 1));
-  };
+  const likesRef = collection(db, "posts", item.id, "likes");
+
+  const unsubscribe = onSnapshot(likesRef, (snapshot) => {
+    const userIds = snapshot.docs.map(doc => doc.id);
+
+    setLikeCount(snapshot.size);
+
+    const myUid = auth.currentUser?.uid;
+    setLiked(myUid ? userIds.includes(myUid) : false);
+  });
+
+  return unsubscribe;
+}, [item.id]);
+
+
+
+const onLike = async () => {
+  // Optimistic update (UI updates instantly)
+  setLiked((prev) => !prev);
+  setLikeCount((prev) => (liked ? prev - 1 : prev + 1));
+
+  // Then confirm with DB, no need to await result before updating UI
+  await toggleLike(item.id);
+};
+
 
 
   const formatLabel = (key: string) => {

@@ -1,5 +1,7 @@
 // app/member/posts/index.tsx
 import { useEffect, useState } from 'react';
+import { TopBar } from "@/components/TopBar";
+
 import {
   View, Text, ActivityIndicator, FlatList, useColorScheme, TouchableOpacity,
 } from 'react-native';
@@ -60,14 +62,19 @@ export default function MyPosts() {
     );
   }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <View style={{ padding: 16, borderBottomWidth: 1, borderColor: theme.border, backgroundColor: theme.bg }}>
-        <Text style={{ color: theme.text, fontWeight: '600', fontSize: 18 }}>My Posts</Text>
-        <Link href="/member/posts/new" style={{ color: theme.primary, marginTop: 8 }}>
-          + Create a post
-        </Link>
-      </View>
+return (
+  <View style={{ flex: 1, backgroundColor: theme.bg }}>
+
+    {/* ⭐ GLOBAL TOP BAR */}
+    <TopBar />
+
+    <View style={{ padding: 16, borderBottomWidth: 1, borderColor: theme.border, backgroundColor: theme.bg }}>
+      <Text style={{ color: theme.text, fontWeight: '600', fontSize: 18 }}>My Posts</Text>
+      <Link href="/member/posts/new" style={{ color: theme.primary, marginTop: 8 }}>
+        + Create a post
+      </Link>
+    </View>
+
 
       {items.length === 0 ? (
         <View style={{ padding: 16 }}>

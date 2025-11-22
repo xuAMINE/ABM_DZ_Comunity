@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { onSnapshot, collection } from "firebase/firestore";
+import { toggleLike } from "@/lib/posts";
+
 
 import {
   View,
@@ -16,7 +19,6 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 import {
-  collection,
   query,
   where,
   getDocs,
@@ -166,7 +168,34 @@ function Pill({ label, tone = "default" }: PillProps) {
 function PostCard({ item, onDelete }: PostCardProps) {
   const { theme } = useAppTheme();
   const [expanded, setExpanded] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
   const MAX_CHARS = 200;
+  
+  
+  useEffect(() => {
+    if (!item?.id) return;
+
+    const likesRef = collection(db, "posts", item.id, "likes");
+
+    const unsubscribe = onSnapshot(likesRef, (snapshot) => {
+      const userIds = snapshot.docs.map(doc => doc.id);
+
+      setLikeCount(snapshot.size);
+
+      const myUid = auth.currentUser?.uid;
+      setLiked(myUid ? userIds.includes(myUid) : false);
+    });
+
+    return unsubscribe;
+  }, [item.id]);
+
+    const onLike = async () => {
+      setLiked(prev => !prev);
+      setLikeCount(prev => (liked ? prev - 1 : prev + 1));
+      await toggleLike(item.id);
+    };
 
   return (
     <View
@@ -278,10 +307,19 @@ function PostCard({ item, onDelete }: PostCardProps) {
           borderTopColor: theme.border,
         }}
       >
-        <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Feather name="thumbs-up" size={18} color={theme.text} />
-          <Text style={{ color: theme.text }}>Like</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        onPress={onLike}
+        style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+        activeOpacity={0.7}
+      >
+        <Feather
+          name="thumbs-up"
+          size={18}
+          color={liked ? theme.primary : theme.text}
+        />
+        <Text style={{ color: theme.text }}>{likeCount} Likes</Text>
+      </TouchableOpacity>
+
         <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Feather name="message-circle" size={18} color={theme.text} />
           <Text style={{ color: theme.text }}>Comment</Text>
