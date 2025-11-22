@@ -1,6 +1,9 @@
 // app/member/account.tsx
 
 import { useEffect, useState } from "react";
+import { TopBar } from "@/components/TopBar";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import {
   ScrollView,
   View,
@@ -182,7 +185,13 @@ export default function AccountScreen() {
   // UI
   // ------------------------------------------------------------
 
-  return (
+return (
+  <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+    
+    {/* ⭐ Global Top Navigation Bar */}
+    <TopBar />
+
+    {/* ⭐ Main Content (ScrollView stays exactly like before) */}
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
@@ -198,9 +207,7 @@ export default function AccountScreen() {
         Account
       </Text>
 
-      {/* -------------------------------- */}
       {/* FULL NAME */}
-      {/* -------------------------------- */}
       <FieldRow
         label="Full Name"
         value={profile.fullName || ""}
@@ -212,9 +219,7 @@ export default function AccountScreen() {
         theme={theme}
       />
 
-      {/* -------------------------------- */}
       {/* PHONE */}
-      {/* -------------------------------- */}
       <FieldRow
         label="Phone"
         value={profile.phone || ""}
@@ -224,9 +229,7 @@ export default function AccountScreen() {
         theme={theme}
       />
 
-      {/* -------------------------------- */}
       {/* CITY */}
-      {/* -------------------------------- */}
       <FieldRow
         label="City"
         value={profile.city || ""}
@@ -236,9 +239,7 @@ export default function AccountScreen() {
         theme={theme}
       />
 
-      {/* -------------------------------- */}
       {/* STATE */}
-      {/* -------------------------------- */}
       <FieldRow
         label="State"
         value={profile.state || ""}
@@ -248,9 +249,7 @@ export default function AccountScreen() {
         theme={theme}
       />
 
-      {/* -------------------------------- */}
       {/* ZIP */}
-      {/* -------------------------------- */}
       <FieldRow
         label="ZIP Code"
         value={profile.zip || ""}
@@ -260,9 +259,7 @@ export default function AccountScreen() {
         theme={theme}
       />
 
-      {/* -------------------------------- */}
-      {/* EMAIL - READONLY */}
-      {/* -------------------------------- */}
+      {/* EMAIL */}
       <View style={{ marginBottom: 20 }}>
         <Text
           style={{
@@ -350,5 +347,7 @@ export default function AccountScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
-  );
+  </SafeAreaView>
+);
+
 }

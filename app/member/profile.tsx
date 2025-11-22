@@ -1,6 +1,9 @@
 // app/member/profile.tsx
 
 import { useEffect, useState } from "react";
+import { TopBar } from "@/components/TopBar";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import {
   View,
   Text,
@@ -462,7 +465,13 @@ export default function ProfileScreen() {
     );
   }
 
-  return (
+return (
+  <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+    
+    {/* ⭐ Global Top Navigation Bar */}
+    <TopBar />
+
+    {/* ⭐ Scrollable Content */}
     <FlatList
       style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={{ padding: 16 }}
@@ -470,79 +479,107 @@ export default function ProfileScreen() {
         <>
           {/* PROFILE CARD */}
           <View
-  style={{
-    backgroundColor: theme.card,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    alignItems: "center",
-  }}
->
-  {/* Avatar Centered */}
-  {profile.photoURL ? (
-    <Image
-      source={{ uri: profile.photoURL }}
-      style={{
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        marginBottom: 12,
-      }}
-    />
-  ) : (
-    <View
-      style={{
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: theme.primary,
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 12,
-      }}
-    >
-      <Text style={{ color: "#fff", fontSize: 30, fontWeight: "700" }}>
-        {(profile.fullName || "M")[0].toUpperCase()}
-      </Text>
-    </View>
-  )}
+            style={{
+              backgroundColor: theme.card,
+              padding: 16,
+              borderRadius: 16,
+              marginBottom: 16,
+              alignItems: "center",
+            }}
+          >
+            {/* Avatar */}
+            {profile.photoURL ? (
+              <Image
+                source={{ uri: profile.photoURL }}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  marginBottom: 12,
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: theme.primary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 30, fontWeight: "700" }}
+                >
+                  {(profile.fullName || "M")[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
 
-  {/* Name */}
-  <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text, textAlign: "center" }}>
-    {profile.fullName || "Member"}
-  </Text>
+            {/* Name */}
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "700",
+                color: theme.text,
+                textAlign: "center",
+              }}
+            >
+              {profile.fullName || "Member"}
+            </Text>
 
-  {/* Member since */}
-  {profile.createdAt ? (
-    <Text style={{ color: theme.placeholder, marginTop: 4, textAlign: "center" }}>
-      Member since{" "}
-      {profile.createdAt?.toDate
-        ? profile.createdAt.toDate().toLocaleDateString("en-US", {
-            month: "long",
-            year: "numeric",
-          })
-        : ""}
-    </Text>
-  ) : (
-    <Text style={{ color: theme.placeholder, marginTop: 4, textAlign: "center" }}>
-      New member
-    </Text>
-  )}
+            {/* Member since */}
+            {profile.createdAt ? (
+              <Text
+                style={{
+                  color: theme.placeholder,
+                  marginTop: 4,
+                  textAlign: "center",
+                }}
+              >
+                Member since{" "}
+                {profile.createdAt?.toDate
+                  ? profile.createdAt.toDate().toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })
+                  : ""}
+              </Text>
+            ) : (
+              <Text
+                style={{
+                  color: theme.placeholder,
+                  marginTop: 4,
+                  textAlign: "center",
+                }}
+              >
+                New member
+              </Text>
+            )}
 
-  {/* Location */}
-  <View style={{ marginTop: 12 }}>
-    <Text style={{ fontWeight: "600", color: theme.text, marginBottom: 4, textAlign: "center" }}>
-      Location
-    </Text>
-    <Text style={{ color: theme.placeholder, textAlign: "center" }}>
-      {profile.city || profile.state
-        ? `${profile.city ? `${profile.city}, ` : ""}${profile.state}`
-        : "Location not provided"}
-    </Text>
-  </View>
-</View>
-
-
+            {/* Location */}
+            <View style={{ marginTop: 12 }}>
+              <Text
+                style={{
+                  fontWeight: "600",
+                  color: theme.text,
+                  marginBottom: 4,
+                  textAlign: "center",
+                }}
+              >
+                Location
+              </Text>
+              <Text
+                style={{ color: theme.placeholder, textAlign: "center" }}
+              >
+                {profile.city || profile.state
+                  ? `${profile.city ? `${profile.city}, ` : ""}${profile.state}`
+                  : "Location not provided"}
+              </Text>
+            </View>
+          </View>
 
           {/* COMPOSER */}
           <ComposerCard
@@ -564,11 +601,11 @@ export default function ProfileScreen() {
       }
       data={posts}
       keyExtractor={(i) => i.id}
-      renderItem={({ item }) => (
-        <PostCard item={item} onDelete={deletePost} />
-      )}
+      renderItem={({ item }) => <PostCard item={item} onDelete={deletePost} />}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       ListFooterComponent={<View style={{ height: 40 }} />}
     />
-  );
+  </SafeAreaView>
+);
+
 }

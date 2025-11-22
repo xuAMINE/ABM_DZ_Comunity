@@ -1,6 +1,7 @@
 // lib/posts.ts
 // lib/posts.ts
 import { auth, db } from './firebase';
+import { logActivity } from "./activity";
 
 import {
   addDoc,
@@ -83,6 +84,13 @@ export async function createPost(
   };
 
   const docRef = await addDoc(collection(db, 'posts'), payload);
+      // AFTER creating post:
+    await logActivity({
+      type: "create",
+      postId: docRef.id,
+      postTitle: input.title,
+      category: input.category,
+    });
   return { id: docRef.id, ...payload } as AugmentedPost;
 }
 
@@ -124,6 +132,13 @@ export async function updatePost(id: string, updates: Partial<Post>) {
     ...(updates as Record<string, any>),
     updatedAt: serverTimestamp(),
   });
+  await logActivity({
+  type: "update",
+  postId: id,
+  postTitle: updates.title,
+  category: updates.category,
+});
+
 }
 
 /** ------------------ DELETE ------------------ **/
@@ -289,6 +304,12 @@ export async function toggleLike(postId: string) {
       userId: uid,
       createdAt: serverTimestamp(),
     });
+      await logActivity({
+    type: "like",
+    postId,
+    postTitle: (await getPostById(postId))?.title || "A post",
+    targetUserName: (await getPostById(postId))?.authorName || "",
+  });
     return true;
   }
 }
@@ -325,6 +346,14 @@ export async function addComment(postId: string, text: string) {
   };
 
   await addDoc(collection(db, "posts", postId, "comments"), payload);
+  await logActivity({
+  type: "comment",
+  postId,
+  postTitle: (await getPostById(postId))?.title,
+  targetUserName: (await getPostById(postId))?.authorName,
+  commentText: text,
+});
+
 }
 
 export async function getComments(postId: string) {

@@ -115,7 +115,7 @@ function statusTone(s?: string): "muted" | "success" | "warning" | "danger" | "d
   }
 }
 
-function PostCard({ item, onEdit, onDelete }: any) {
+export function PostCard({ item, onEdit, onDelete }: any) {
   const { theme } = useAppTheme();
   const [expanded, setExpanded] = useState(false);
 
@@ -173,7 +173,7 @@ const loadMoreComments = async () => {
   const { comments: tenComments, cursor: newCursor } =
     await getCommentsPaginated(item.id, 10);
 
-  setComments(tenComments);        // ⬅️ replace previous list
+  setComments(tenComments);
   setCursor(newCursor);
   setHasMore(tenComments.length === 10);
 

@@ -36,7 +36,14 @@ function DrawerContent() {
             <Text style={{ color: theme.text, fontSize: 16 }}>Account</Text>
           </TouchableOpacity>
         </Link>
-      </View>
+
+
+        <Link href="/member/posts/activity/activity" asChild>
+          <TouchableOpacity style={{ paddingVertical: 10 }}>
+            <Text style={{ color: theme.text, fontSize: 16 }}>Activity</Text>
+          </TouchableOpacity>
+        </Link>
+     </View>
 
       {/* theme toggle */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.border2 }}>
@@ -75,8 +82,7 @@ export default function MemberLayout() {
   return (
     <Drawer
       screenOptions={{
-        headerStyle: { backgroundColor: theme.card },
-        headerTintColor: theme.text,
+        headerShown: false,              // 👈 HIDE THE AUTOMATIC HEADER
         drawerStyle: { backgroundColor: theme.bg },
         sceneStyle: { backgroundColor: theme.bg },
       }}

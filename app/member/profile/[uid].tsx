@@ -1,6 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { TopBar } from "@/components/TopBar";
+
 
 import {
   View,
@@ -91,18 +94,27 @@ export default function PublicProfileScreen() {
         <ActivityIndicator color={theme.text}/>
       </View>
     );
-  }
+  }if (loading) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: theme.bg,
+      }}
+    >
+      <ActivityIndicator color={theme.text} />
+    </View>
+  );
+}
 
-   return (
-    <>
-      {profile && (
-        <Stack.Screen
-          options={{
-            title: profile.fullName || "Member",
-            headerTitleAlign: "center",
-          }}
-        />
-      )}
+return (
+  <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+    {/* ⭐ Global Navigation Bar */}
+    <TopBar />
+
+    {/* ⭐ Public Profile Content */}
     <FlatList
       style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={{ padding: 16 }}
@@ -152,12 +164,18 @@ export default function PublicProfileScreen() {
             )}
           </View>
 
-          <Text style={{ fontSize:18, fontWeight:"700", color:theme.text, marginBottom:12 }}>
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: theme.text,
+              marginBottom: 12,
+            }}
+          >
             Posts by {profile?.fullName}
           </Text>
         </>
       }
-
       data={posts}
       keyExtractor={(i) => i.id}
       renderItem={({ item }) => (
@@ -171,21 +189,21 @@ export default function PublicProfileScreen() {
             marginBottom: 12,
           }}
         >
-          <Text style={{ fontWeight:"700", color:theme.text }}>{item.title}</Text>
+          <Text style={{ fontWeight: "700", color: theme.text }}>{item.title}</Text>
 
           {item.imageUrl && (
             <Image
               source={{ uri: item.imageUrl }}
-              style={{ width:"100%", height:200, borderRadius:12, marginTop:8 }}
+              style={{ width: "100%", height: 200, borderRadius: 12, marginTop: 8 }}
             />
           )}
 
-          <Text style={{ marginTop:8, color:theme.text }}>
+          <Text style={{ marginTop: 8, color: theme.text }}>
             {item.description}
           </Text>
         </View>
       )}
     />
-    </>
-  );
+  </SafeAreaView>
+);
 }

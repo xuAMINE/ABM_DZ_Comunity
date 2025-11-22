@@ -5,6 +5,8 @@ export type Category = 'janazah' | 'events' | 'jobs' | 'pub';
 
 export type BasePost = {
   id?: string;
+
+  // Existing fields
   ownerId: string;
   groupId: string;
   category: Category;
@@ -17,7 +19,14 @@ export type BasePost = {
   publishedAt?: Timestamp;
   location?: GeoPoint;
   tags?: string[];
+
+  // 👇 ADD THESE — required for posts.ts activity logging
+  authorId?: string | null;
+  authorName?: string | null;
+  authorCity?: string | null;
+  authorState?: string | null;
 };
+
 
 export type JanazahDetails = {
   deceasedName?: string;
