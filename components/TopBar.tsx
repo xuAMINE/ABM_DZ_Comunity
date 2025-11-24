@@ -1,14 +1,30 @@
 // app/components/TopBar.tsx
+import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { DrawerActions, useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { useAppTheme } from "@/lib/theme";
 import { auth } from "@/lib/firebase";
+import { listenUnreadNotifications } from "@/lib/notifications";
 
 export function TopBar() {
   const nav = useNavigation();
   const { theme } = useAppTheme();
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Real-time unread notifications count listener
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    const unsub = listenUnreadNotifications(uid, (count) => {
+      setUnreadCount(count);
+    });
+
+    return unsub;
+  }, []);
 
   const name =
     auth.currentUser?.displayName ||
@@ -27,6 +43,7 @@ export function TopBar() {
         justifyContent: "space-between",
         borderBottomWidth: 1,
         borderBottomColor: theme.border,
+        backgroundColor: theme.bg,
       }}
     >
       {/* MENU BUTTON */}
@@ -42,14 +59,44 @@ export function TopBar() {
         DZ Community
       </Text>
 
-      {/* Right icons */}
+      {/* RIGHT SIDE */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-        {/* Notification */}
-        <TouchableOpacity activeOpacity={0.7}>
-          <Feather name="bell" size={22} color={theme.text} />
-        </TouchableOpacity>
 
-        {/* Avatar */}
+        {/* 🔔 NOTIFICATION BELL WITH UNREAD COUNT */}
+        <Link href="/member/notifications" asChild>
+          <TouchableOpacity activeOpacity={0.7} style={{ position: "relative" }}>
+            <Feather name="bell" size={22} color={theme.text} />
+
+            {unreadCount > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -10,
+                  minWidth: 18,
+                  height: 18,
+                  paddingHorizontal: 4,
+                  backgroundColor: "#ef4444",
+                  borderRadius: 9,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "white",
+                    fontSize: 10,
+                    fontWeight: "700",
+                  }}
+                >
+                  {unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </Link>
+
+        {/* AVATAR */}
         <Link href="/member/profile" asChild>
           <TouchableOpacity activeOpacity={0.7}>
             <View
@@ -68,6 +115,7 @@ export function TopBar() {
             </View>
           </TouchableOpacity>
         </Link>
+
       </View>
     </View>
   );

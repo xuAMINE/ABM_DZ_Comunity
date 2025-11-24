@@ -8,6 +8,8 @@ import { isPostLikedByMe, toggleLike } from "@/lib/posts";
 import {addComment,getCommentsPaginated,} from "@/lib/posts";
 import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { TopBar } from "@/components/TopBar";
+
 
 
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -987,122 +989,76 @@ const onSaveEdit = async (updates: any) => {
 
 
 return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      {HideHeader}
-      {/* Top Bar */}
-      <View
+  <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+    {HideHeader}
+
+    {/* ✅ Shared global top bar */}
+    <TopBar />
+
+    {/* 🔍 Search bar */}
+    <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+      <TextInput
+        value={search}
+        placeholder="Search posts…"
+        onChangeText={setSearch}
         style={{
-          paddingHorizontal: 16,
-          paddingVertical: 16,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border,
+          borderWidth: 1,
+          borderColor: theme.border,
+          borderRadius: 8,
+          paddingHorizontal: 12,
+          height: 42,
+          backgroundColor: theme.inputBg,
+          color: theme.text,
         }}
-      >
-        <TouchableOpacity
-          onPress={() => (nav as any).dispatch(DrawerActions.openDrawer())}
-          activeOpacity={0.7}
-        >
-          <Feather name="menu" size={22} color={theme.text} />
-        </TouchableOpacity>
+        placeholderTextColor={theme.placeholder}
+      />
+    </View>
 
-        <Text style={{ fontWeight: "800", fontSize: 18, color: theme.text }}>
-          DZ Community
-        </Text>
-
-        <View style={{ flexDirection: "row", alignItems: "center", columnGap: 16 }}>
-          {/* Notification */}
-          <TouchableOpacity activeOpacity={0.7}>
-            <Feather name="bell" size={22} color={theme.text} />
-          </TouchableOpacity>
-
-          {/* Profile avatar */}
-          <Link href="/member/profile" asChild>
-            <TouchableOpacity activeOpacity={0.7}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: theme.primary,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  {avatarInitial}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </Link>
-        </View>
+    {/* 📰 Feed */}
+    {!filtered ? (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ color: theme.text }}>Loading…</Text>
       </View>
-
-      {/* Search */}
-      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-        <TextInput
-          value={search}
-          placeholder="Search posts…"
-          onChangeText={setSearch}
-          style={{
-            borderWidth: 1,
-            borderColor: theme.border,
-            borderRadius: 8,
-            paddingHorizontal: 12,
-            height: 42,
-            backgroundColor: theme.inputBg,
-            color: theme.text,
-          }}
-          placeholderTextColor={theme.placeholder}
-        />
-      </View>
-
-      {/* Feed */}
-      {!filtered ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ color: theme.text }}>Loading…</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(i) => i.id}
-          contentContainerStyle={{ padding: 16, rowGap: 12 }}
-          renderItem={({ item }) => {
-            if (editingId === item.id) {
-              return (
-                <EditPostCard
-                  post={item}
-                  onSave={onSaveEdit}
-                  onCancel={() => setEditingId(null)}
-                />
-              );
-            }
-
+    ) : (
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ padding: 16, rowGap: 12 }}
+        renderItem={({ item }) => {
+          if (editingId === item.id) {
             return (
-              <PostCard
-                item={item}
-                onEdit={onEditPost}
-                onDelete={onDeletePost}
+              <EditPostCard
+                post={item}
+                onSave={onSaveEdit}
+                onCancel={() => setEditingId(null)}
               />
             );
-          }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListHeaderComponent={
-            <View style={{ rowGap: 12, marginBottom: 12 }}>
-              <ComposerCard selectedCat={catForNew} onSelectCat={setCatForNew} />
-              <Text style={{ fontWeight: "700", color: theme.text }}>
-                Latest posts
-              </Text>
-            </View>
-          }
-        />
-      )}
-    </SafeAreaView>
-  );
+
+          return (
+            <PostCard
+              item={item}
+              onEdit={onEditPost}
+              onDelete={onDeletePost}
+            />
+          );
+        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListHeaderComponent={
+          <View style={{ rowGap: 12, marginBottom: 12 }}>
+            <ComposerCard selectedCat={catForNew} onSelectCat={setCatForNew} />
+            <Text style={{ fontWeight: "700", color: theme.text }}>
+              Latest posts
+            </Text>
+          </View>
+        }
+      />
+    )}
+  </SafeAreaView>
+);
+
 }
 
 

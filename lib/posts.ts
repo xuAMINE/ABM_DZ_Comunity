@@ -1,7 +1,7 @@
 // lib/posts.ts
-// lib/posts.ts
 import { auth, db } from './firebase';
 import { logActivity } from "./activity";
+import { createNotification } from "@/lib/notifications";
 
 import {
   addDoc,
@@ -26,6 +26,7 @@ import {
 
 import { getMemberProfile } from './member'; // ⬅️ add this
 import { Post } from '../types/post';
+import { Notification } from '../types/notification';
 
 
 type MemberProfile = {
@@ -288,7 +289,7 @@ export async function getApprovedFeed(count = 50) {
 
 
 
-export async function toggleLike(postId: string) {
+/*export async function toggleLike(postId: string) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("Not authenticated");
 
@@ -312,7 +313,70 @@ export async function toggleLike(postId: string) {
   });
     return true;
   }
+}*/
+
+export async function toggleLike(postId: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not authenticated");
+
+  const likeRef = doc(db, "posts", postId, "likes", uid);
+  const snap = await getDoc(likeRef);
+
+  // Get post once
+  const post = await getPostById(postId);
+  const postOwnerId = post?.ownerId;
+  const postTitle = post?.title || "A post";
+  const postAuthorName = (post as any)?.authorName || "";
+
+  if (snap.exists()) {
+    // UNLIKE
+    await deleteDoc(likeRef);
+    return false;
+  } else {
+    // LIKE
+    await setDoc(likeRef, {
+      userId: uid,
+      createdAt: serverTimestamp(),
+    });
+
+    // Get actor profile for name + avatar
+    const profile = await getMemberProfile(uid);
+    const actorName =
+      (profile as any)?.fullName ||
+      (profile as any)?.name ||
+      auth.currentUser?.displayName ||
+      "Member";
+
+    const actorPhotoURL =
+      (profile as any)?.photoURL || auth.currentUser?.photoURL || null;
+
+    // 🔔 Notification to post owner
+    if (postOwnerId && postOwnerId !== uid) {
+      await createNotification({
+        recipientId: postOwnerId,
+        actorId: uid,
+        actorName,
+        actorPhotoURL,
+        postId,
+        postTitle,
+        type: "like",
+      });
+    }
+
+    // Activity log
+    await logActivity({
+      type: "like",
+      postId,
+      postTitle,
+      targetUserName: postAuthorName,
+    });
+
+    return true;
+  }
 }
+
+
+
 
 export async function getLikeCount(postId: string) {
   const snap = await getDocs(collection(db, "posts", postId, "likes"));
@@ -331,7 +395,7 @@ export async function isPostLikedByMe(postId: string) {
 
 /** ------------------ COMMENTS ------------------ **/
 
-export async function addComment(postId: string, text: string) {
+/*export async function addComment(postId: string, text: string) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("Not authenticated");
 
@@ -354,7 +418,61 @@ export async function addComment(postId: string, text: string) {
   commentText: text,
 });
 
+}*/
+
+export async function addComment(postId: string, text: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not authenticated");
+
+  const profileSnap = await getDoc(doc(db, "members", uid));
+  const profile = profileSnap.exists() ? profileSnap.data() : null;
+
+  const authorName = profile?.fullName || "Member";
+  const actorPhotoURL =
+    (profile as any)?.photoURL || auth.currentUser?.photoURL || null;
+
+  const payload = {
+    userId: uid,
+    text,
+    authorName,
+    createdAt: serverTimestamp(),
+  };
+
+  // Save comment
+  await addDoc(collection(db, "posts", postId, "comments"), payload);
+
+  // Get post info once
+  const post = await getPostById(postId);
+  const postOwnerId = post?.ownerId;
+  const postTitle = post?.title || "A post";
+  const postAuthorName = (post as any)?.authorName;
+
+  // 🔔 Notification to post owner
+  if (postOwnerId && postOwnerId !== uid) {
+    await createNotification({
+      recipientId: postOwnerId,
+      actorId: uid,
+      actorName: authorName,
+      actorPhotoURL,
+      postId,
+      postTitle,
+      type: "comment",
+    });
+  }
+
+  // Activity log
+  await logActivity({
+    type: "comment",
+    postId,
+    postTitle,
+    targetUserName: postAuthorName,
+    commentText: text,
+  });
 }
+
+
+
+
 
 export async function getComments(postId: string) {
   const q = query(
