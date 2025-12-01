@@ -289,31 +289,7 @@ export async function getApprovedFeed(count = 50) {
 
 
 
-/*export async function toggleLike(postId: string) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("Not authenticated");
 
-  const likeRef = doc(db, "posts", postId, "likes", uid);
-
-  const snap = await getDoc(likeRef);
-
-  if (snap.exists()) {
-    await deleteDoc(likeRef);
-    return false;
-  } else {
-    await setDoc(likeRef, {
-      userId: uid,
-      createdAt: serverTimestamp(),
-    });
-      await logActivity({
-    type: "like",
-    postId,
-    postTitle: (await getPostById(postId))?.title || "A post",
-    targetUserName: (await getPostById(postId))?.authorName || "",
-  });
-    return true;
-  }
-}*/
 
 export async function toggleLike(postId: string) {
   const uid = auth.currentUser?.uid;
@@ -395,30 +371,7 @@ export async function isPostLikedByMe(postId: string) {
 
 /** ------------------ COMMENTS ------------------ **/
 
-/*export async function addComment(postId: string, text: string) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("Not authenticated");
 
-  const profileSnap = await getDoc(doc(db, "members", uid));
-  const profile = profileSnap.exists() ? profileSnap.data() : null;
-
-  const payload = {
-    userId: uid,
-    text,
-    authorName: profile?.fullName || "Member",
-    createdAt: serverTimestamp(),
-  };
-
-  await addDoc(collection(db, "posts", postId, "comments"), payload);
-  await logActivity({
-  type: "comment",
-  postId,
-  postTitle: (await getPostById(postId))?.title,
-  targetUserName: (await getPostById(postId))?.authorName,
-  commentText: text,
-});
-
-}*/
 
 export async function addComment(postId: string, text: string) {
   const uid = auth.currentUser?.uid;
