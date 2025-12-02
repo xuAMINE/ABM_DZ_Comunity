@@ -1,5 +1,8 @@
 // constants/theme.ts
 export type Theme = {
+  background: any;
+  muted: any;
+  buttonText: any;
   bg: string;
   text: string;
   border: string;
@@ -12,7 +15,18 @@ export type Theme = {
   success: string;
 };
 
-export const lightTheme: Theme = {
+export const lightTheme: {
+  border: string;
+  border2: string;
+  bg: string;
+  success: string;
+  text: string;
+  inputBg: string;
+  placeholder: string;
+  chipBg: string;
+  card: string;
+  primary: string
+} = {
   bg: '#f6f7f9',
   text: '#0f172a',
   border: '#e5e7eb',
@@ -25,7 +39,18 @@ export const lightTheme: Theme = {
   success: '#16a34a',
 };
 
-export const darkTheme: Theme = {
+export const darkTheme: {
+  border: string;
+  border2: string;
+  bg: string;
+  success: string;
+  text: string;
+  inputBg: string;
+  placeholder: string;
+  chipBg: string;
+  card: string;
+  primary: string
+} = {
   bg: '#0b0f13',
   text: '#e5e7eb',
   border: '#1f2937',

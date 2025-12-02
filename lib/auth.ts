@@ -41,6 +41,7 @@ export const signup = async (
 
   await setDoc(doc(db, "members", uid), {
     fullName,
+    fullNameLower: fullName.toLowerCase(),
     email,
     phone,
     city,

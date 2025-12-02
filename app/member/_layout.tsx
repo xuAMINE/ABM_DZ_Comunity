@@ -37,6 +37,11 @@ function DrawerContent() {
           </TouchableOpacity>
         </Link>
 
+        <Link href="/member/friends" asChild>
+          <TouchableOpacity style={{ paddingVertical: 10 }}>
+            <Text style={{ color: theme.text, fontSize: 16 }}>Friends</Text>
+          </TouchableOpacity>
+        </Link>
 
         <Link href="/member/posts/activity/activity" asChild>
           <TouchableOpacity style={{ paddingVertical: 10 }}>

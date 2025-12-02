@@ -74,18 +74,18 @@ function toDate(ts: any): Date {
 
 // ---- Aggregated notification type for UI ----
 type AggregatedNotification = {
-  key: string; // stable key for FlatList
-  docIds: string[]; // original notification doc IDs
-  type: Notification["type"];
-  postId: string;
-  postTitle?: string | null;
-  createdAt: any; // Firestore timestamp
-  read: boolean; // considered read if all items are read
-  actors: {
-    id: string;
-    name: string;
-    photoURL?: string | null;
-  }[];
+    key: string;
+    docIds: string[];
+    type: Notification["type"];
+    postId?: string;
+    postTitle?: string | null;
+    createdAt: any;
+    read: boolean;
+    actors: {
+        id: string;
+        name: string;
+        photoURL?: string | null;
+    }[];
 };
 
 // Section header label
@@ -126,9 +126,10 @@ function aggregateNotifications(
     const d = toDate(n.createdAt);
     const minuteBucket = getMinuteBucketKey(d);
 
-    const groupKey = `${n.type}-${n.postId}-${minuteBucket}`;
+      const postKey = n.postId ?? "none";
+      const groupKey = `${n.type}-${postKey}-${minuteBucket}`;
 
-    const actor = {
+      const actor = {
       id: n.actorId,
       name: n.actorName,
       photoURL: n.actorPhotoURL,
@@ -275,10 +276,16 @@ const handleOpenNotification = async (group: AggregatedNotification) => {
   // Mark all notifications in this group as read
   await Promise.all(group.docIds.map((id) => markNotificationRead(id)));
 
-  const any = items.find((n) => group.docIds.includes(n.id));
-  if (any?.postId) {
-    router.push(`/member/posts/view/${any.postId}`);
-  }
+    const any = items.find((n) => group.docIds.includes(n.id));
+    if (!any) return;
+
+    if (any.type === "friend_request" || any.type === "friend_request_accepted") {
+        // Go to the friends / requests screen
+        router.push("/member/friends");
+    } else if (any.postId) {
+        // Old behavior for like/comment
+        router.push(`/member/posts/view/${any.postId}`);
+    }
 };
 
 
@@ -304,14 +311,34 @@ const handleOpenNotification = async (group: AggregatedNotification) => {
       prefix = `${names[0]}, ${names[1]}, ${names[2]} and ${others} others`;
     }
 
-    const action =
-      group.type === "comment"
-        ? "commented on your post"
-        : "liked your post";
+      let action: string;
+      let titlePart = "";
 
-    const titlePart = group.postTitle ? ` "${group.postTitle}"` : "";
+      switch (group.type) {
+          case "comment":
+              action = "commented on your post";
+              titlePart = group.postTitle ? ` "${group.postTitle}"` : "";
+              break;
+          case "like":
+              action = "liked your post";
+              titlePart = group.postTitle ? ` "${group.postTitle}"` : "";
+              break;
+          case "friend_request":
+              action = "sent you a friend request";
+              break;
+          case "friend_request_accepted":
+              action = "accepted your friend request";
+              break;
+          default:
+              action = "did something";
+      }
 
-    return `${prefix} ${action}${titlePart}`;
+      if (!prefix) {
+          // fallback in case actors array is empty
+          prefix = "Someone";
+      }
+
+      return `${prefix} ${action}${titlePart}`;
   };
 
   const renderAvatar = (group: AggregatedNotification) => {

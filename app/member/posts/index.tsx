@@ -1,4 +1,4 @@
-// app/member/posts/index.tsx
+// app/member/posts/friends.tsx
 import { useEffect, useState } from 'react';
 import { TopBar } from "@/components/TopBar";
 

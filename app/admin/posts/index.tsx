@@ -1,4 +1,4 @@
-// app/admin/posts/index.tsx
+// app/admin/posts/friends.tsx
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { adminListPosts, setModeration } from '@/lib/posts';
