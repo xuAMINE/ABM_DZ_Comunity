@@ -3,15 +3,25 @@
 import { db } from './firebase';
 import {doc, getDoc, collection, limit, orderBy, query, startAt, endAt, getDocs,} from 'firebase/firestore';
 
-export async function getMemberProfile(uid: string) {
-  try {
-    const snap = await getDoc(doc(db, 'members', uid));
-    if (!snap.exists()) return null;
-    return { uid, ...snap.data() };
-  } catch (err) {
-    console.error(`❌ Failed to fetch member profile for ${uid}:`, err);
-    return null;
-  }
+import { MemberProfile } from "@/types/member";
+
+export async function getMemberProfile(uid: string): Promise<MemberProfile | null> {
+  const snap = await getDoc(doc(db, "members", uid));
+  if (!snap.exists()) return null;
+
+  const data = snap.data();
+  return {
+    uid,
+    fullName: data.fullName ?? "Unknown User",
+    city: data.city,
+    state: data.state,
+    zip: data.zip,
+    phone: data.phone,
+    photoURL: data.photoURL ?? null,
+    groupId: data.groupId,
+    role: data.role,
+    status: data.status,
+  };
 }
 
 export interface MemberSummary {

@@ -1,6 +1,14 @@
 // app/member/friends/friends.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity } from "react-native";
+import {
+    View,
+    Text,
+    TextInput,
+    Button,
+    FlatList,
+    TouchableOpacity,
+} from "react-native";
+
 import { useAppTheme } from "@/lib/theme";
 import { Friend, FriendRequest } from "@/types/friends";
 import {
@@ -13,8 +21,41 @@ import {
 } from "@/lib/friends";
 import { searchMembersByName, MemberSummary } from "@/lib/member";
 import { auth } from "@/lib/firebase";
+import { getMemberProfile } from "@/lib/member";
 
 type Tab = "friends" | "requests" | "search";
+
+// Small profile cache to avoid repeat Firestore reads
+const profileCache: Record<
+    string,
+    { fullName: string; city?: string; state?: string } | null
+> = {};
+
+async function resolveProfile(uid: string): Promise<{
+    fullName: string;
+    city?: string;
+    state?: string;
+}> {
+    if (profileCache[uid]) return profileCache[uid];
+
+    const profile = await getMemberProfile(uid);
+
+    if (!profile) {
+        // Cache fallback
+        const fallback = { fullName: "Unknown User" };
+        profileCache[uid] = fallback;
+        return fallback;
+    }
+
+    const data = {
+        fullName: profile.fullName ?? "Unknown User",
+        city: profile.city,
+        state: profile.state,
+    };
+
+    profileCache[uid] = data;
+    return data;
+}
 
 export default function FriendsScreen() {
     const { theme } = useAppTheme();
@@ -28,56 +69,69 @@ export default function FriendsScreen() {
     const [searchResults, setSearchResults] = useState<MemberSummary[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
 
+    const [incomingNames, setIncomingNames] = useState<Record<string, string>>({});
+    const [outgoingNames, setOutgoingNames] = useState<Record<string, string>>({});
+
     const me = auth.currentUser;
 
+    // --- Listeners -----------------------------------------------------
+
     useEffect(() => {
-        const user = auth.currentUser;
-        if (!user) return;
+        if (!me) return;
 
         const unsubFriends = listenFriends(setFriends);
-        const unsubIncoming = listenIncomingFriendRequests(setIncoming);
-        const unsubOutgoing = listenOutgoingFriendRequests(setOutgoing);
+        const unsubIncoming = listenIncomingFriendRequests(async (reqs) => {
+            setIncoming(reqs);
+
+            // fetch names for all senders
+            const nameMap: Record<string, string> = {};
+            for (const r of reqs) {
+                const p = await resolveProfile(r.fromUid);
+                nameMap[r.id] = p.fullName;
+            }
+            setIncomingNames(nameMap);
+        });
+
+        const unsubOutgoing = listenOutgoingFriendRequests(async (reqs) => {
+            setOutgoing(reqs);
+
+            const nameMap: Record<string, string> = {};
+            for (const r of reqs) {
+                const p = await resolveProfile(r.toUid);
+                nameMap[r.id] = p.fullName;
+            }
+            setOutgoingNames(nameMap);
+        });
 
         return () => {
-            unsubFriends && unsubFriends();
-            unsubIncoming && unsubIncoming();
-            unsubOutgoing && unsubOutgoing();
+            unsubFriends?.();
+            unsubIncoming?.();
+            unsubOutgoing?.();
         };
-    }, []);
+    }, [me]);
+
+    // --- Sets to detect status in search results -----------------------
 
     const friendsSet = useMemo(
         () => new Set(friends.map((f) => f.friendUid)),
         [friends]
     );
     const outgoingSet = useMemo(
-        () =>
-            new Set(
-                outgoing.map((r) =>
-                    // fromUid is me, so friend is toUid
-                    (r as any).toUid
-                )
-            ),
+        () => new Set(outgoing.map((r) => r.toUid)),
         [outgoing]
     );
     const incomingSet = useMemo(
-        () =>
-            new Set(
-                incoming.map((r) =>
-                    // toUid is me, so friend is fromUid
-                    (r as any).fromUid
-                )
-            ),
+        () => new Set(incoming.map((r) => r.fromUid)),
         [incoming]
     );
+
+    // --- Actions --------------------------------------------------------
 
     async function handleSearch() {
         try {
             setSearchLoading(true);
             const results = await searchMembersByName(searchTerm.trim());
-            setSearchResults(
-                // hide myself from results
-                results.filter((m) => m.uid !== me?.uid)
-            );
+            setSearchResults(results.filter((m) => m.uid !== me?.uid));
         } catch (e) {
             console.error(e);
         } finally {
@@ -85,40 +139,41 @@ export default function FriendsScreen() {
         }
     }
 
-    async function handleSendRequest(targetUid: string) {
+    async function handleSendRequest(uid: string) {
         try {
-            await sendFriendRequest(targetUid);
-        } catch (e) {
-            console.error(e);
-            // you can show a toast / Alert here
+            await sendFriendRequest(uid);
+        } catch (err) {
+            console.error(err);
         }
     }
 
-    async function handleAccept(requestId: string) {
+    async function handleAccept(id: string) {
         try {
-            await respondToFriendRequest(requestId, true);
-        } catch (e) {
-            console.error(e);
+            await respondToFriendRequest(id, true);
+        } catch (err) {
+            console.error(err);
         }
     }
 
-    async function handleReject(requestId: string) {
+    async function handleDecline(id: string) {
         try {
-            await respondToFriendRequest(requestId, false);
-        } catch (e) {
-            console.error(e);
+            await respondToFriendRequest(id, false);
+        } catch (err) {
+            console.error(err);
         }
     }
 
-    async function handleRemoveFriend(friendUid: string) {
+    async function handleRemove(uid: string) {
         try {
-            await removeFriend(friendUid);
-        } catch (e) {
-            console.error(e);
+            await removeFriend(uid);
+        } catch (err) {
+            console.error(err);
         }
     }
 
-    // --- render helpers -------------------------------------------
+    // -------------------------------------------------------------------
+    //  Rendering helpers
+    // -------------------------------------------------------------------
 
     function renderTabs() {
         const tabs: { id: Tab; label: string }[] = [
@@ -126,6 +181,7 @@ export default function FriendsScreen() {
             { id: "requests", label: "Requests" },
             { id: "search", label: "Find Friends" },
         ];
+
         return (
             <View
                 style={{
@@ -169,6 +225,7 @@ export default function FriendsScreen() {
         if (!friends.length) {
             return <Text style={{ color: theme.text }}>You have no friends yet.</Text>;
         }
+
         return (
             <FlatList
                 data={friends}
@@ -195,10 +252,7 @@ export default function FriendsScreen() {
                                 </Text>
                             )}
                         </View>
-                        <Button
-                            title="Remove"
-                            onPress={() => handleRemoveFriend(item.friendUid)}
-                        />
+                        <Button title="Remove" onPress={() => handleRemove(item.friendUid)} />
                     </View>
                 )}
             />
@@ -211,6 +265,7 @@ export default function FriendsScreen() {
                 <Text style={{ color: theme.text, fontWeight: "700", marginBottom: 8 }}>
                     Incoming
                 </Text>
+
                 {incoming.length === 0 && (
                     <Text style={{ color: theme.muted, marginBottom: 16 }}>
                         No incoming requests.
@@ -230,12 +285,12 @@ export default function FriendsScreen() {
                         }}
                     >
                         <Text style={{ color: theme.text }}>
-                            {req.fromUid} sent you a request
-                            {/* you can look up their name with a small profile cache */}
+                            {incomingNames[req.id] ?? "Loading..."} sent you a request
                         </Text>
+
                         <View style={{ flexDirection: "row", gap: 8 }}>
                             <Button title="Accept" onPress={() => handleAccept(req.id)} />
-                            <Button title="Decline" onPress={() => handleReject(req.id)} />
+                            <Button title="Decline" onPress={() => handleDecline(req.id)} />
                         </View>
                     </View>
                 ))}
@@ -250,6 +305,7 @@ export default function FriendsScreen() {
                 >
                     Outgoing
                 </Text>
+
                 {outgoing.length === 0 && (
                     <Text style={{ color: theme.muted }}>No pending outgoing requests.</Text>
                 )}
@@ -264,7 +320,7 @@ export default function FriendsScreen() {
                         }}
                     >
                         <Text style={{ color: theme.text }}>
-                            Pending request to {req.toUid}
+                            Pending request to {outgoingNames[req.id] ?? "Loading..."}
                         </Text>
                     </View>
                 ))}
@@ -291,7 +347,10 @@ export default function FriendsScreen() {
                             color: theme.text,
                         }}
                     />
-                    <Button title={searchLoading ? "..." : "Search"} onPress={handleSearch} />
+                    <Button
+                        title={searchLoading ? "..." : "Search"}
+                        onPress={handleSearch}
+                    />
                 </View>
 
                 <FlatList
@@ -347,18 +406,18 @@ export default function FriendsScreen() {
                         );
                     }}
                     ListEmptyComponent={
-                        searchTerm
-                            ? (
-                                <Text style={{ color: theme.muted }}>
-                                    No members found for “{searchTerm}”.
-                                </Text>
-                            )
-                            : null
+                        searchTerm ? (
+                            <Text style={{ color: theme.muted }}>
+                                No members found for “{searchTerm}”.
+                            </Text>
+                        ) : null
                     }
                 />
             </View>
         );
     }
+
+    // -------------------------------------------------------------------
 
     return (
         <View
