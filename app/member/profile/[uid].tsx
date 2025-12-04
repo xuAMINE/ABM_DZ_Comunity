@@ -1,3 +1,4 @@
+//app/member/profile/[uid].tsx
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Stack } from "expo-router";

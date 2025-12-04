@@ -157,12 +157,16 @@ export default function AdminLayout() {
       }}
       drawerContent={() => <AdminDrawerContent />}
     >
-      {/* Declare admin routes */}
       <Drawer.Screen name="dashboard" />
       <Drawer.Screen name="posts/index" />
       <Drawer.Screen name="posts/[id]" />
       <Drawer.Screen name="members" />
       <Drawer.Screen name="settings" />
+
+      {/* ✅ ADD THIS */}
+      <Drawer.Screen name="member/[uid]" />
+
     </Drawer>
   );
 }
+
