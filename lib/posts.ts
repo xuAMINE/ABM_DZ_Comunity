@@ -69,12 +69,15 @@ export async function createPost(
   const authorCity = profile.city || null;
   const authorState = profile.state || null;
 
+  const autoApproved = input.category?.toLowerCase() !== "pub";
+
   const payload = {
     ...input,
     ownerId: uid,
-    status: input.status ?? 'pending',
 
-    // ✅ Denormalized author info stored directly in the post
+    status: autoApproved ? "approved" : "pending",
+    publishedAt: autoApproved ? serverTimestamp() : null,
+
     authorId: uid,
     authorName,
     authorCity,
@@ -475,3 +478,73 @@ export async function getCommentsPaginated(
     cursor: snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : undefined,
   };
 }
+
+
+
+/** ------------------ REPORT POST ------------------ **/
+export async function reportPost(postId: string, reason: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not signed in");
+
+  // Create the subdocument
+  await setDoc(
+    doc(db, "posts", postId, "reports", uid),
+    {
+      userId: uid,
+      reason,
+      createdAt: new Date(),
+    }
+  );
+
+  // Mark the post as "reported" (only admin or owner can update)
+  // So we use updateDoc inside a try/catch
+  try {
+    await updateDoc(doc(db, "posts", postId), {
+      reported: true,
+    });
+  } catch (e) {
+    console.log("Not allowed to update main post, but report saved", e);
+  }
+}
+
+/** ------------------ ADMIN: GET REPORTED POSTS ------------------ **/
+/** ------------------ ADMIN: GET REPORTED POSTS ------------------ **/
+export async function adminGetReportedPosts() {
+  const snap = await getDocs(collection(db, "posts"));
+
+  const results: any[] = [];
+
+  for (const postDoc of snap.docs) {
+    const postId = postDoc.id;
+    const postData = postDoc.data();
+
+    // Load all reports for this post
+    const reportsSnap = await getDocs(
+      collection(db, "posts", postId, "reports")
+    );
+
+    if (reportsSnap.empty) continue; // skip unreported posts
+
+    const reports = reportsSnap.docs.map((r) => ({
+      id: r.id,
+      ...(r.data() as any),
+    }));
+
+    // Group by reason
+    const reasonCount: Record<string, number> = {};
+    reports.forEach((r) => {
+      reasonCount[r.reason] = (reasonCount[r.reason] || 0) + 1;
+    });
+
+    results.push({
+      id: postId,
+      ...postData,
+      reportCount: reports.length,
+      reports: reports,
+      reasonCount,
+    });
+  }
+
+  return results;
+}
+

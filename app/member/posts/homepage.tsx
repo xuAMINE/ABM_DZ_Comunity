@@ -9,6 +9,8 @@ import {addComment,getCommentsPaginated,} from "@/lib/posts";
 import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { TopBar } from "@/components/TopBar";
+import { reportPost } from "@/lib/posts";
+
 
 
 
@@ -126,6 +128,7 @@ export function PostCard({ item, onEdit, onDelete }: any) {
 
   const MAX_CHARS = 100;
   const isOwner = auth.currentUser?.uid === item.ownerId;
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const shortDescription =
     item.description && item.description.length > MAX_CHARS
@@ -285,17 +288,96 @@ const onLike = async () => {
           </Text>
         </View>
 
-        {isOwner && (
-          <>
-            <TouchableOpacity onPress={() => onEdit(item)} style={{ marginRight: 10 }}>
-              <Feather name="edit" size={20} color={theme.primary} />
-            </TouchableOpacity>
+        {/* 3 dots menu */}
+        {/* 3 dots menu toggle */}
+        <TouchableOpacity onPress={() => setMenuOpen(prev => !prev)}>
+          <Feather name="more-vertical" size={22} color={theme.text} />
+        </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => onDelete(item)}>
-              <Feather name="trash" size={20} color="red" />
-            </TouchableOpacity>
+        {/* MENU + BACKDROP */}
+        {menuOpen && (
+          <>
+            {/* BACKDROP to close menu when pressed */}
+            <TouchableOpacity
+              onPress={() => setMenuOpen(false)}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 998,
+              }}
+            />
+
+            {/* THE MENU */}
+            <View
+              style={{
+                position: "absolute",
+                top: 40,
+                right: 10,
+                backgroundColor: theme.card,
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 8,
+                padding: 8,
+                zIndex: 999,
+              }}
+            >
+
+              {/* REPORT (only if NOT owner) */}
+              {!isOwner && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setMenuOpen(false);
+                    Alert.alert(
+                      "Report Post",
+                      "Why are you reporting this?",
+                      [
+                        { text: "Spam", onPress: () => reportPost(item.id, "spam") },
+                        { text: "Inappropriate", onPress: () => reportPost(item.id, "inappropriate") },
+                        { text: "Harassment", onPress: () => reportPost(item.id, "harassment") },
+                        { text: "False Info", onPress: () => reportPost(item.id, "misinformation") },
+                        { text: "Cancel", style: "cancel" },
+                      ]
+                    );
+                  }}
+                  style={{ paddingVertical: 8 }}
+                >
+                  <Text style={{ color: theme.text }}>Report Post</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* EDIT + DELETE (owner only) */}
+              {isOwner && (
+                <>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setMenuOpen(false);
+                      onEdit(item);
+                    }}
+                    style={{ paddingVertical: 8 }}
+                  >
+                    <Text style={{ color: theme.text }}>Edit Post</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setMenuOpen(false);
+                      onDelete(item);
+                    }}
+                    style={{ paddingVertical: 8 }}
+                  >
+                    <Text style={{ color: "red" }}>Delete Post</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+            </View>
           </>
         )}
+
+
       </View>
 
       {/* TITLE */}

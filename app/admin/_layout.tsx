@@ -33,31 +33,37 @@ function AdminDrawerContent() {
       {/* LINKS */}
       <View style={{ padding: 16, rowGap: 12 }}>
 
-        <Link href="/admin/dashboard" asChild>
-          <TouchableOpacity style={{ paddingVertical: 10 }}>
-            <Text style={{ color: theme.text, fontSize: 16 }}>Dashboard</Text>
-          </TouchableOpacity>
-        </Link>
+      <Link href="/admin/dashboard" asChild>
+        <TouchableOpacity style={{ paddingVertical: 10 }}>
+          <Text style={{ color: theme.text, fontSize: 16 }}>Dashboard</Text>
+        </TouchableOpacity>
+      </Link>
 
-        <Link href="/admin/posts" asChild>
-          <TouchableOpacity style={{ paddingVertical: 10 }}>
-            <Text style={{ color: theme.text, fontSize: 16 }}>Posts Moderation</Text>
-          </TouchableOpacity>
-        </Link>
+      <Link href="/admin/posts" asChild>
+        <TouchableOpacity style={{ paddingVertical: 10 }}>
+          <Text style={{ color: theme.text, fontSize: 16 }}>Posts Moderation</Text>
+        </TouchableOpacity>
+      </Link>
 
-        <Link href="/admin/members" asChild>
-          <TouchableOpacity style={{ paddingVertical: 10 }}>
-            <Text style={{ color: theme.text, fontSize: 16 }}>Members</Text>
-          </TouchableOpacity>
-        </Link>
+      <Link href="/admin/posts/reported" asChild>
+        <TouchableOpacity style={{ paddingVertical: 10 }}>
+          <Text style={{ color: theme.text, fontSize: 16 }}>Reported Posts</Text>
+        </TouchableOpacity>
+      </Link>
 
-        <Link href="/admin/settings" asChild>
-          <TouchableOpacity style={{ paddingVertical: 10 }}>
-            <Text style={{ color: theme.text, fontSize: 16 }}>Admin Settings</Text>
-          </TouchableOpacity>
-        </Link>
+      <Link href="/admin/members" asChild>
+        <TouchableOpacity style={{ paddingVertical: 10 }}>
+          <Text style={{ color: theme.text, fontSize: 16 }}>Members</Text>
+        </TouchableOpacity>
+      </Link>
 
-      </View>
+      <Link href="/admin/settings" asChild>
+        <TouchableOpacity style={{ paddingVertical: 10 }}>
+          <Text style={{ color: theme.text, fontSize: 16 }}>Admin Settings</Text>
+        </TouchableOpacity>
+      </Link>
+    </View>
+
 
       {/* THEME MODE */}
       <View
@@ -159,6 +165,7 @@ export default function AdminLayout() {
     >
       <Drawer.Screen name="dashboard" />
       <Drawer.Screen name="posts/index" />
+      <Drawer.Screen name="posts/reported" />
       <Drawer.Screen name="posts/[id]" />
       <Drawer.Screen name="members" />
       <Drawer.Screen name="settings" />
