@@ -1,3 +1,4 @@
+// types/member.ts
 export interface MemberProfile {
     uid: string;
     fullName: string;

@@ -21,7 +21,7 @@ import { db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../lib/firebase";
 //import { collection, getDocs } from "firebase/firestore";
-import { getDoc, doc } from "firebase/firestore";
+import { getDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -45,16 +45,44 @@ export default function LoginScreen() {
 useEffect(() => {
   const unsub = onAuthStateChanged(auth, async (u) => {
     if (!u) return;
+
     try {
-      // Read ONLY the current user's member doc (allowed by rules)
-      const snap = await getDoc(doc(db, "members", u.uid));
-      console.log("✅ My member doc exists:", snap.exists());
+      const ref = doc(db, "members", u.uid);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        console.log("⚠️ Member profile missing. Recreating...");
+
+        const fullName = u.displayName || "Unknown User";
+        const email = u.email || "";
+
+        await setDoc(ref, {
+          uid: u.uid,
+          fullName,
+          fullNameLower: fullName.toLowerCase(),
+          email,
+          phone: "",
+          city: "",
+          state: "",
+          zip: "",
+          role: "member",
+          status: "ok",
+          createdAt: serverTimestamp(),
+          lastCheckIn: serverTimestamp(),
+        });
+
+        console.log("✅ Member profile recreated successfully");
+      } else {
+        console.log("🟢 Member profile already exists.");
+      }
     } catch (error) {
-      console.error("❌ Firestore error after sign-in:", error);
+      console.error("❌ Error checking/creating member profile:", error);
     }
   });
+
   return unsub;
 }, []);
+
 
 
 
