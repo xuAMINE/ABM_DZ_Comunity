@@ -1,7 +1,7 @@
-
-//app/login.tsx
+// app/login.tsx
 import { useState, useEffect } from "react";
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
+import { validateUser } from "@/lib/checkUserAccess";
 
 import {
   View,
@@ -16,11 +16,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+
 import { login, signup } from "../lib/auth";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../lib/firebase";
-//import { collection, getDocs } from "firebase/firestore";
 import { getDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function LoginScreen() {
@@ -37,19 +36,20 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
 
- 
-
   const isDark = colorScheme === "dark";
   const theme = isDark ? darkTheme : lightTheme;
 
-useEffect(() => {
-  const unsub = onAuthStateChanged(auth, async (u) => {
-    if (!u) return;
+  // 🔥 MAIN AUTH EFFECT: checks profile existence, restriction, role
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) return;
 
-    try {
       const ref = doc(db, "members", u.uid);
-      const snap = await getDoc(ref);
+      let snap = await getDoc(ref);
 
+      // ----------------------------------------------------------
+      // 1️⃣ AUTO-RECREATE MEMBER DOCUMENT IF MISSING
+      // ----------------------------------------------------------
       if (!snap.exists()) {
         console.log("⚠️ Member profile missing. Recreating...");
 
@@ -71,33 +71,52 @@ useEffect(() => {
           lastCheckIn: serverTimestamp(),
         });
 
+        snap = await getDoc(ref);
         console.log("✅ Member profile recreated successfully");
-      } else {
-        console.log("🟢 Member profile already exists.");
       }
-    } catch (error) {
-      console.error("❌ Error checking/creating member profile:", error);
-    }
-  });
 
-  return unsub;
-}, []);
+      // ----------------------------------------------------------
+      // 2️⃣ VALIDATE USER ACCESS (role + status)
+      // ----------------------------------------------------------
+      const res = await validateUser(u);
 
+      if (!res.allowed) {
+        if (res.reason === "restricted") {
+          router.replace("/restricted");
+        } else {
+          router.replace("/login");
+        }
+        return;
+      }
 
+      // ----------------------------------------------------------
+      // 3️⃣ REDIRECT BY ROLE
+      // ----------------------------------------------------------
+      if (res.role === "admin") {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/member/posts/homepage");
+      }
+    });
 
+    return unsub;
+  }, []);
 
-
+  // 🔥 SUBMIT LOGIN/SIGNUP
   const onSubmit = async () => {
     if (
       !email ||
       !password ||
-      (mode === "signup" && (!fullName || !phone || !city || !stateName || !zip))
+      (mode === "signup" &&
+        (!fullName || !phone || !city || !stateName || !zip))
     ) {
       Alert.alert("Missing info", "Please fill all fields.");
       return;
     }
-try {
+
+    try {
       setLoading(true);
+
       if (mode === "login") {
         await login(email.trim(), password);
       } else {
@@ -112,17 +131,15 @@ try {
         );
       }
 
-      // ⬇️ Go straight to the feed
-      router.replace("/member/posts/homepage");
+      // ❌Do NOT redirect manually: AuthState handles routing.
+      // router.replace("/member/posts/homepage");
 
-    } catch (e:any) {
+    } catch (e: any) {
       Alert.alert("Auth error", e.message);
     } finally {
       setLoading(false);
     }
   };
-
-
 
   return (
     <KeyboardAvoidingView
@@ -157,14 +174,14 @@ try {
             />
             <TextInput
               style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-              placeholder="City (e.g., Chicago)"
+              placeholder="City"
               placeholderTextColor={theme.placeholder}
               value={city}
               onChangeText={setCity}
             />
             <TextInput
               style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-              placeholder="State (e.g., IL)"
+              placeholder="State"
               placeholderTextColor={theme.placeholder}
               autoCapitalize="characters"
               value={stateName}
@@ -172,7 +189,7 @@ try {
             />
             <TextInput
               style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
-              placeholder="ZIP code"
+              placeholder="ZIP"
               placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={zip}
@@ -190,6 +207,7 @@ try {
           value={email}
           onChangeText={setEmail}
         />
+
         <TextInput
           style={[s.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }]}
           placeholder="Password"
@@ -213,7 +231,9 @@ try {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+        <TouchableOpacity
+          onPress={() => setMode(mode === "login" ? "signup" : "login")}
+        >
           <Text style={[s.link, { color: theme.link }]}>
             {mode === "login"
               ? "Don't have an account? Sign up"
