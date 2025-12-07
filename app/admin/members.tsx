@@ -46,11 +46,17 @@ export default function AdminMembersScreen() {
     await onSearch();
   }
 
-  async function onAssignAdmin(user: any) {
-    setLoading(true);
-    await assignRole(user.id, "admin");
-    await onSearch();
-  }
+    async function onAssignAdmin(user: any) {
+      setLoading(true);
+
+      // if user is admin → make them member
+      // if user is member (or anything else) → make them admin
+      const nextRole = user.role === "admin" ? "member" : "admin";
+
+      await assignRole(user.id, nextRole);
+      await onSearch();
+    }
+
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -193,20 +199,21 @@ export default function AdminMembersScreen() {
                     </TouchableOpacity>
                   )}
 
-                  <TouchableOpacity
-                    onPress={() => onAssignAdmin(user)}
-                    style={{
-                      backgroundColor: "#3b82f6",
-                      padding: 10,
-                      borderRadius: 8,
-                      width: "48%",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "#fff", fontWeight: "600" }}>
-                      Make Admin
-                    </Text>
-                  </TouchableOpacity>
+<TouchableOpacity
+  onPress={() => onAssignAdmin(user)}
+  style={{
+    backgroundColor: user.role === "admin" ? "#6b7280" : "#3b82f6", // gray if demoting, blue if promoting
+    padding: 10,
+    borderRadius: 8,
+    width: "48%",
+    alignItems: "center",
+  }}
+>
+  <Text style={{ color: "#fff", fontWeight: "600" }}>
+    {user.role === "admin" ? "Make Member" : "Make Admin"}
+  </Text>
+</TouchableOpacity>
+
                 </View>
 
               </TouchableOpacity>

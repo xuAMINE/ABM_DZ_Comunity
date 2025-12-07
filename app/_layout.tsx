@@ -5,7 +5,8 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { listenAuth, getMyProfile } from '../lib/auth';
 import { ThemeProvider, useAppTheme } from '@/lib/theme';
-
+import { Slot } from "expo-router";
+import { PortalHost } from "@gorhom/portal";
 function LayoutInner() {
   const { isDark, theme } = useAppTheme();
 

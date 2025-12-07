@@ -25,6 +25,7 @@ import {
   TextInput,
   Image,
   RefreshControl,
+  Modal,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { DrawerActions, useNavigation } from "@react-navigation/native";
@@ -129,6 +130,7 @@ export function PostCard({ item, onEdit, onDelete }: any) {
   const MAX_CHARS = 100;
   const isOwner = auth.currentUser?.uid === item.ownerId;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const shortDescription =
     item.description && item.description.length > MAX_CHARS
@@ -330,23 +332,14 @@ const onLike = async () => {
                 <TouchableOpacity
                   onPress={() => {
                     setMenuOpen(false);
-                    Alert.alert(
-                      "Report Post",
-                      "Why are you reporting this?",
-                      [
-                        { text: "Spam", onPress: () => reportPost(item.id, "spam") },
-                        { text: "Inappropriate", onPress: () => reportPost(item.id, "inappropriate") },
-                        { text: "Harassment", onPress: () => reportPost(item.id, "harassment") },
-                        { text: "False Info", onPress: () => reportPost(item.id, "misinformation") },
-                        { text: "Cancel", style: "cancel" },
-                      ]
-                    );
+                    setShowReport(true);   // ⬅️ open custom report modal
                   }}
                   style={{ paddingVertical: 8 }}
                 >
                   <Text style={{ color: theme.text }}>Report Post</Text>
                 </TouchableOpacity>
               )}
+
 
               {/* EDIT + DELETE (owner only) */}
               {isOwner && (
@@ -377,6 +370,93 @@ const onLike = async () => {
           </>
         )}
 
+        {/* REPORT MODAL */}
+        <Modal
+          visible={showReport}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowReport(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                width: "80%",
+                backgroundColor: theme.card,
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: theme.text,
+                  marginBottom: 12,
+                }}
+              >
+                Report Post
+              </Text>
+
+              <Text
+                style={{
+                  color: theme.placeholder,
+                  marginBottom: 12,
+                }}
+              >
+                Why are you reporting this?
+              </Text>
+
+              {/* Options list */}
+              {[
+                { label: "Spam", reason: "spam" },
+                { label: "Inappropriate", reason: "inappropriate" },
+                { label: "Harassment", reason: "harassment" },
+                { label: "False Info / Misinformation", reason: "misinformation" },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.reason}
+                  onPress={() => {
+                    reportPost(item.id, opt.reason);
+                    setShowReport(false);
+                  }}
+                  style={{
+                    paddingVertical: 10,
+                  }}
+                >
+                  <Text style={{ color: theme.text }}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Divider */}
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: theme.border,
+                  marginVertical: 10,
+                }}
+              />
+
+              {/* Cancel row */}
+              <TouchableOpacity
+                onPress={() => setShowReport(false)}
+                style={{ paddingVertical: 10 }}
+              >
+                <Text style={{ color: "red", fontWeight: "600", textAlign: "center" }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
       </View>
 

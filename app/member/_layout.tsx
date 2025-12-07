@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { useAppTheme } from '@/lib/theme';
 import { logout } from '@/lib/auth';
 
+
 function DrawerContent() {
   const router = useRouter();
   const { theme, mode, setMode, isDark } = useAppTheme();
@@ -95,3 +96,5 @@ export default function MemberLayout() {
     />
   );
 }
+
+

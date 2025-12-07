@@ -1,3 +1,4 @@
+// app/admin/posts/index.tsx
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -208,31 +209,34 @@ export default function AdminPostsModeration() {
                 justifyContent: "space-between",
               }}
             >
-              {/* APPROVE */}
-              <TouchableOpacity
-                onPress={() => approvePost(post.id)}
-                style={{
-                  backgroundColor: "#10b981",
-                  padding: 10,
-                  borderRadius: 8,
-                  width: "48%",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  Approve
-                </Text>
-              </TouchableOpacity>
+              {/** Only show APPROVE if not already approved */}
+              {post.status !== "approved" && (
+                <TouchableOpacity
+                  onPress={() => approvePost(post.id)}
+                  style={{
+                    backgroundColor: "#10b981",
+                    padding: 10,
+                    borderRadius: 8,
+                    width: "48%",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    Approve
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-              {/* DELETE */}
+              {/* DELETE — always visible */}
               <TouchableOpacity
                 onPress={() => removePost(post.id)}
                 style={{
                   backgroundColor: "#ef4444",
                   padding: 10,
                   borderRadius: 8,
-                  width: "48%",
+                  width: post.status !== "approved" ? "48%" : "100%", // full width if no Approve
                   alignItems: "center",
+                  marginTop: post.status !== "approved" ? 0 : 0,
                 }}
               >
                 <Text style={{ color: "#fff", fontWeight: "700" }}>
@@ -240,6 +244,7 @@ export default function AdminPostsModeration() {
                 </Text>
               </TouchableOpacity>
             </View>
+
           </View>
         ))}
       </View>

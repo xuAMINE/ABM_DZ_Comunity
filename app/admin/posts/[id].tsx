@@ -74,6 +74,8 @@ export default function AdminPostDetail() {
       </View>
     );
   }
+  const canApprove = post.status !== "approved" && post.category !== "pub";
+
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -142,62 +144,66 @@ export default function AdminPostDetail() {
           )}
         </View>
 
-        {/* ACTION BUTTONS */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginTop: 10,
-          }}
-        >
-          {/* APPROVE */}
-          <TouchableOpacity
-            onPress={approve}
+          {/* ACTION BUTTONS */}
+          <View
             style={{
-              backgroundColor: "#10b981",
+              flexDirection: "row",
+              justifyContent: canApprove ? "space-between" : "flex-end",
+              marginTop: 10,
+            }}
+          >
+            {/* APPROVE — only if not already approved */}
+            {canApprove && (
+              <TouchableOpacity
+                onPress={approve}
+                style={{
+                  backgroundColor: "#10b981",
+                  padding: 12,
+                  borderRadius: 10,
+                  width: "48%",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>
+                  Approve
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* REJECT — you can keep or also hide for approved, your choice */}
+            <TouchableOpacity
+              onPress={reject}
+              style={{
+                backgroundColor: "#f59e0b",
+                padding: 12,
+                borderRadius: 10,
+                width: canApprove ? "48%" : "100%",
+                alignItems: "center",
+                marginLeft: canApprove ? 0 : 0,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700" }}>
+                Reject
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* DELETE BUTTON — always visible */}
+          <TouchableOpacity
+            onPress={remove}
+            style={{
+              backgroundColor: "#ef4444",
               padding: 12,
               borderRadius: 10,
-              width: "48%",
+              marginTop: 14,
               alignItems: "center",
             }}
           >
             <Text style={{ color: "#fff", fontWeight: "700" }}>
-              Approve
+              Delete Post
             </Text>
           </TouchableOpacity>
 
-          {/* REJECT */}
-          <TouchableOpacity
-            onPress={reject}
-            style={{
-              backgroundColor: "#f59e0b",
-              padding: 12,
-              borderRadius: 10,
-              width: "48%",
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "700" }}>
-              Reject
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* DELETE BUTTON */}
-        <TouchableOpacity
-          onPress={remove}
-          style={{
-            backgroundColor: "#ef4444",
-            padding: 12,
-            borderRadius: 10,
-            marginTop: 14,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "700" }}>
-            Delete Post
-          </Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
