@@ -91,6 +91,37 @@ function Pill({
       fg: isDark ? "#fecaca" : "#991b1b",
       border: isDark ? "#ef4444" : "#fecaca",
     },
+      // NEW: category-specific colors
+      janazah: {
+          bg: isDark ? "#1f2937" : "#e5e7eb",
+          fg: isDark ? "#f9fafb" : "#111827",
+          border: isDark ? "#6b7280" : "#9ca3af",
+      },
+      events: {
+          bg: isDark ? "#312e81" : "#e0e7ff",
+          fg: isDark ? "#c7d2fe" : "#3730a3",
+          border: isDark ? "#4f46e5" : "#a5b4fc",
+      },
+      jobs: {
+          // Red-violet / magenta vibe
+          bg: isDark ? "#4C013B" : "#FCE7F3",     // deep magenta → soft pink
+          fg: isDark ? "#F9A8D4" : "#BE185D",     // pink accent
+          border: isDark ? "#BE185D" : "#F9A8D4", // matching border
+      },
+
+      pub: {
+          // Yellow / amber vibe
+          bg: isDark ? "#593100" : "#FEF9C3",     // deep amber → soft light yellow
+          fg: isDark ? "#FDE68A" : "#B45309",     // gold/brown text
+          border: isDark ? "#F59E0B" : "#FDE68A", // yellow border
+      },
+
+      poll: {
+          // Purple vibe
+          bg: isDark ? "#2D1B69" : "#F3E8FF",     // deep purple → soft lavender
+          fg: isDark ? "#C4B5FD" : "#6D28D9",     // purple accent
+          border: isDark ? "#8B5CF6" : "#C4B5FD", // purple border
+      },
   };
   const c = palette[tone] ?? palette.default;
   return (
@@ -307,7 +338,16 @@ const onLike = async () => {
       .trim();
   };
 
-  return (
+    const categoryToneMap: Record<string, any> = {
+        janazah: "janazah",
+        events: "events",
+        jobs: "jobs",
+        pub: "pub",
+        poll: "poll",
+    };
+
+
+    return (
     <View
       style={{
         borderWidth: 1,
@@ -643,13 +683,20 @@ const onLike = async () => {
       )}
 
       {/* TAGS */}
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-        {item.category && <Pill label={String(item.category)} tone="muted" />}
-        {item.status && <Pill label={String(item.status)} tone={statusTone(item.status)} />}
-        {isOwner && <Pill label="My post" tone="success" />}
-      </View>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            {item.category && (
+                <Pill
+                    label={String(item.category)}
+                    tone={categoryToneMap[String(item.category)] ?? "muted"}
+                />
+            )}
+            {item.status && (
+                <Pill label={String(item.status)} tone={statusTone(item.status)} />
+            )}
+            {isOwner && <Pill label="My post" tone="success" />}
+        </View>
 
-      {/* ─────────────────────────────── */}
+        {/* ─────────────────────────────── */}
       {/*           FULL DETAILS          */}
       {/* ─────────────────────────────── */}
       {expanded && detailsEntries.length > 0 && (
@@ -1214,6 +1261,7 @@ export default function MemberHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [catForNew, setCatForNew] = useState<Cat>("janazah");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
   // Load feed
   const load = useCallback(async () => {
     const data = await getPublicFeed(50);
@@ -1237,16 +1285,23 @@ export default function MemberHome() {
   }, [load]);
 
   // Search filter
-  const filtered = useMemo(() => {
-    if (!items) return null;
-    const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (p) =>
-        String(p.title || "").toLowerCase().includes(q) ||
-        String(p.description || "").toLowerCase().includes(q)
-    );
-  }, [items, search]);
+    const filtered = useMemo(() => {
+        if (!items) return null;
+        const q = search.trim().toLowerCase();
+
+        return items.filter((p) => {
+            const matchesText =
+                !q ||
+                String(p.title || "").toLowerCase().includes(q) ||
+                String(p.description || "").toLowerCase().includes(q);
+
+            const matchesCat =
+                feedFilter === "all" || String(p.category) === feedFilter;
+
+            return matchesText && matchesCat;
+        });
+    }, [items, search, feedFilter]);
+
 
   // Avatar initial
   const avatarLabel =
@@ -1344,12 +1399,46 @@ return (
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListHeaderComponent={
-          <View style={{ rowGap: 12, marginBottom: 12 }}>
-            <ComposerCard selectedCat={catForNew} onSelectCat={setCatForNew} />
-            <Text style={{ fontWeight: "700", color: theme.text }}>
-              Latest posts
-            </Text>
-          </View>
+            <View style={{ rowGap: 12, marginBottom: 12 }}>
+                <ComposerCard selectedCat={catForNew} onSelectCat={setCatForNew} />
+
+                {/* category filter tabs for the feed */}
+                <View
+                    style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 4,
+                    }}
+                >
+                    {FEED_FILTERS.map((f) => {
+                        const active = f === feedFilter;
+                        const label =
+                            f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1);
+
+                        return (
+                            <TouchableOpacity
+                                key={f}
+                                onPress={() => setFeedFilter(f)}
+                                style={{
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    borderRadius: 999,
+                                    borderWidth: 1,
+                                    borderColor: active ? theme.primary : theme.border,
+                                    backgroundColor: active ? theme.primary : theme.chipBg,
+                                }}
+                            >
+                                <Text style={{ color: active ? "#fff" : theme.text }}>{label}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                <Text style={{ fontWeight: "700", color: theme.text }}>
+                    Latest posts
+                </Text>
+            </View>
         }
       />
     )}
