@@ -30,7 +30,7 @@ import type { Theme } from '@/constants/theme';
 
 import { TopBar } from "@/components/TopBar";   // ⭐ ADDED
 
-const CATS = ['janazah', 'events', 'jobs', 'pub'] as const;
+const CATS = ['janazah', 'events', 'jobs', 'pub', 'poll'] as const;
 type Cat = typeof CATS[number];
 
 const Field = memo(({ label, k, value, keyboardType, onChange, theme, onFocus }: {
@@ -90,15 +90,41 @@ export default function NewPost() {
 
   const onSave = useCallback(async () => {
     if (!title) return Alert.alert('Title required');
+
     try {
+      let finalDetails: any = details;
+
+      if (category === 'poll') {
+        const options = Object.entries(details)
+            .filter(
+                ([k, v]) =>
+                    k.startsWith('option') &&
+                    typeof v === 'string' &&
+                    v.trim().length > 0
+            )
+            .sort(([a], [b]) => a.localeCompare(b)) // option1, option2, ...
+            .map(([_, text], idx) => ({
+              id: `opt_${idx}`,
+              text: (text as string).trim(),
+            }));
+
+        if (options.length < 2) {
+          Alert.alert('Poll needs at least 2 options');
+          return;
+        }
+
+        finalDetails = { options };
+      }
+
       await createPost({
         category,
         title,
         description,
         groupId: 'default',
-        details,
+        details: finalDetails,
         status: 'pending',
       } as any);
+
       Alert.alert('Submitted', 'Your post is awaiting approval.');
       router.replace('/member/posts/homepage');
     } catch (e: any) {
@@ -146,6 +172,13 @@ export default function NewPost() {
           { k: 'phone', label: 'Phone', keyboardType: 'phone-pad' },
           { k: 'openingHours', label: 'Opening hours' },
           { k: 'website', label: 'Website' },
+        ];
+      case 'poll':
+        return [
+          { k: 'option1', label: 'Option 1' },
+          { k: 'option2', label: 'Option 2' },
+          { k: 'option3', label: 'Option 3 (optional)' },
+          { k: 'option4', label: 'Option 4 (optional)' },
         ];
       default:
         return [];

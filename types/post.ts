@@ -1,7 +1,7 @@
 // types/post.ts
 import { GeoPoint, Timestamp } from 'firebase/firestore';
 
-export type Category = 'janazah' | 'events' | 'jobs' | 'pub';
+export type Category = 'janazah' | 'events' | 'jobs' | 'pub' | 'poll';
 
 export type BasePost = {
   id?: string;
@@ -63,8 +63,19 @@ export type PubDetails = {
   website?: string;
 };
 
+export type PollOption = {
+  id: string;
+  text: string;
+};
+
+export type PollDetails = {
+  // We’ll keep votes in a subcollection, so options just need id + text
+  options: PollOption[];
+};
+
 export type Post =
-  | (BasePost & { category: 'janazah'; details: JanazahDetails })
-  | (BasePost & { category: 'events'; details: EventDetails })
-  | (BasePost & { category: 'jobs'; details: JobDetails })
-  | (BasePost & { category: 'pub'; details: PubDetails });
+    | (BasePost & { category: 'janazah'; details: JanazahDetails })
+    | (BasePost & { category: 'events'; details: EventDetails })
+    | (BasePost & { category: 'jobs'; details: JobDetails })
+    | (BasePost & { category: 'pub'; details: PubDetails })
+    | (BasePost & { category: 'poll'; details: PollDetails });

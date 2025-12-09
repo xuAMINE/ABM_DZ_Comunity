@@ -479,6 +479,56 @@ export async function getCommentsPaginated(
   };
 }
 
+/** ------------------ POLLS ------------------ **/
+
+// Get aggregated counts for a poll
+export async function getPollVotes(postId: string) {
+  const snap = await getDocs(collection(db, "posts", postId, "pollVotes"));
+
+  const counts: Record<string, number> = {};
+  snap.forEach((d) => {
+    const data = d.data() as any;
+    const optionId = data.optionId;
+    if (!optionId) return;
+    counts[optionId] = (counts[optionId] ?? 0) + 1;
+  });
+
+  return {
+    counts,
+    total: snap.size,
+  };
+}
+
+// Get the current user's selected option (if any)
+export async function getMyPollVote(postId: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+
+  const ref = doc(db, "posts", postId, "pollVotes", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+
+  const data = snap.data() as any;
+  return data.optionId ?? null;
+}
+
+// Cast / change a vote
+export async function voteOnPoll(postId: string, optionId: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not authenticated");
+
+  await setDoc(
+      doc(db, "posts", postId, "pollVotes", uid),
+      {
+        userId: uid,
+        optionId,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+  );
+
+  // You can add notifications / logActivity here later if you want
+}
 
 
 /** ------------------ REPORT POST ------------------ **/

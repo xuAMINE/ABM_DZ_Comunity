@@ -5,17 +5,13 @@ import { Alert } from "react-native";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { deletePost, updatePost } from "@/lib/posts";
 import { isPostLikedByMe, toggleLike } from "@/lib/posts";
-import {addComment,getCommentsPaginated,} from "@/lib/posts";
+import { addComment,getCommentsPaginated,} from "@/lib/posts";
 import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { TopBar } from "@/components/TopBar";
 import { reportPost } from "@/lib/posts";
-
-
-
-
+import { voteOnPoll, getPollVotes, getMyPollVote } from "@/lib/posts";
 import DateTimePicker from "@react-native-community/datetimepicker";
-
 import {
   Platform,
   View,
@@ -41,8 +37,11 @@ async function getLikeCount(postId: string): Promise<number> {
   return 0;
 }
 
-const CATS = ["janazah", "events", "jobs", "pub"] as const;
+const CATS = ["janazah", "events", "jobs", "pub", "poll"] as const;
 type Cat = (typeof CATS)[number];
+
+const FEED_FILTERS = ["all", ...CATS] as const;
+type FeedFilter = (typeof FEED_FILTERS)[number];
 
 function timeAgo(ts?: any) {
   try {
@@ -137,23 +136,37 @@ export function PostCard({ item, onEdit, onDelete }: any) {
       ? item.description.slice(0, MAX_CHARS) + "..."
       : item.description;
 
-  const detailsEntries = item.details ? Object.entries(item.details) : [];
+    const detailsEntries = item.details
+        ? Object.entries(item.details).filter(([key]) =>
+            item.category === "poll" ? key !== "options" : true
+        )
+        : [];
 
 
 
-  const [liked, setLiked] = useState(false);
+    const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
 
-//////////////////////////////////////////////////////////
-// ───────────────────────────────
-// Inline Comments (Paginated)
-// ───────────────────────────────
-const [comments, setComments] = useState<any[]>([]);
-const [commentText, setCommentText] = useState("");
-const [loadingComments, setLoadingComments] = useState(false);
-const [cursor, setCursor] = useState<any>(null);
-const [hasMore, setHasMore] = useState(true);
+    //////////////////////////////////////////////////////////
+    // ───────────────────────────────
+    // Inline Comments (Paginated)
+    // ───────────────────────────────
+    const [comments, setComments] = useState<any[]>([]);
+    const [commentText, setCommentText] = useState("");
+    const [loadingComments, setLoadingComments] = useState(false);
+    const [cursor, setCursor] = useState<any>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [pollCounts, setPollCounts] = useState<Record<string, number>>({});
+    const [pollTotal, setPollTotal] = useState(0);
+    const [myPollVote, setMyPollVote] = useState<string | null>(null);
+    const [pollLoading, setPollLoading] = useState(false);
+
+    const pollOptions =
+        item.category === "poll" && Array.isArray(item.details?.options)
+            ? item.details.options
+            : [];
+
 
 // Load initial 10 comments
 useEffect(() => {
@@ -227,6 +240,35 @@ useEffect(() => {
   return unsubscribe;
 }, [item.id]);
 
+    useEffect(() => {
+        if (item.category !== "poll" || !item?.id) return;
+
+        let cancelled = false;
+
+        const loadPollState = async () => {
+            try {
+                const [voteInfo, my] = await Promise.all([
+                    getPollVotes(item.id),
+                    getMyPollVote(item.id),
+                ]);
+
+                if (cancelled) return;
+
+                setPollCounts(voteInfo.counts);
+                setPollTotal(voteInfo.total);
+                setMyPollVote(my);
+            } catch (e) {
+                console.log("Failed to load poll votes", e);
+            }
+        };
+
+        loadPollState();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [item.id, item.category]);
+
 
 
 const onLike = async () => {
@@ -237,6 +279,23 @@ const onLike = async () => {
   // Then confirm with DB, no need to await result before updating UI
   await toggleLike(item.id);
 };
+
+    const onVote = async (optionId: string) => {
+        try {
+            setPollLoading(true);
+            await voteOnPoll(item.id, optionId);
+            setMyPollVote(optionId);
+
+            const voteInfo = await getPollVotes(item.id);
+            setPollCounts(voteInfo.counts);
+            setPollTotal(voteInfo.total);
+        } catch (e: any) {
+            Alert.alert("Error", e.message ?? "Failed to vote on poll.");
+        } finally {
+            setPollLoading(false);
+        }
+    };
+
 
 
 
@@ -498,7 +557,83 @@ const onLike = async () => {
         </View>
       )}
 
-      {/* IMAGE */}
+        {/* POLL (for poll category) */}
+        {item.category === "poll" && pollOptions.length > 0 && (
+            <View
+                style={{
+                    marginTop: 12,
+                    padding: 10,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    backgroundColor: theme.inputBg,
+                    gap: 8,
+                }}
+            >
+                <Text
+                    style={{
+                        color: theme.text,
+                        fontWeight: "600",
+                        marginBottom: 4,
+                    }}
+                >
+                    Vote
+                </Text>
+
+                {pollOptions.map((opt: any) => {
+                    const count = pollCounts[opt.id] ?? 0;
+                    const percent =
+                        pollTotal > 0 ? Math.round((count / pollTotal) * 100) : 0;
+                    const isMine = myPollVote === opt.id;
+
+                    return (
+                        <TouchableOpacity
+                            key={opt.id}
+                            onPress={() => onVote(opt.id)}
+                            disabled={pollLoading}
+                            style={{
+                                paddingVertical: 8,
+                                paddingHorizontal: 10,
+                                borderRadius: 8,
+                                borderWidth: 1,
+                                borderColor: isMine ? theme.primary : theme.border,
+                                backgroundColor: isMine ? theme.chipBg : theme.card,
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    color: theme.text,
+                                    fontWeight: isMine ? "700" : "500",
+                                }}
+                            >
+                                {opt.text}
+                            </Text>
+
+                            <Text style={{ color: theme.sub, fontSize: 12 }}>
+                                {count} vote{count === 1 ? "" : "s"}
+                                {pollTotal > 0 ? ` • ${percent}%` : ""}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+
+                <Text
+                    style={{
+                        color: theme.placeholder,
+                        fontSize: 12,
+                        marginTop: 4,
+                    }}
+                >
+                    {pollTotal} total vote{pollTotal === 1 ? "" : "s"}
+                </Text>
+            </View>
+        )}
+
+
+        {/* IMAGE */}
       {item.imageUrl && (
         <Image
           source={{ uri: String(item.imageUrl) }}
