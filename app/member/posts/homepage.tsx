@@ -652,7 +652,7 @@ const onLike = async () => {
                                 {opt.text}
                             </Text>
 
-                            <Text style={{ color: theme.sub, fontSize: 12 }}>
+                            <Text style={{ color: theme.placeholder, fontSize: 12 }}>
                                 {count} vote{count === 1 ? "" : "s"}
                                 {pollTotal > 0 ? ` • ${percent}%` : ""}
                             </Text>

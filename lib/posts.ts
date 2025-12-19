@@ -2,6 +2,7 @@
 import { auth, db } from './firebase';
 import { logActivity } from "./activity";
 import { createNotification } from "@/lib/notifications";
+import { upsertPostReportToAdminInbox } from "@/lib/adminNotifications";
 
 import {
   addDoc,
@@ -532,30 +533,66 @@ export async function voteOnPoll(postId: string, optionId: string) {
 
 
 /** ------------------ REPORT POST ------------------ **/
+
+
 export async function reportPost(postId: string, reason: string) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("Not signed in");
 
-  // Create the subdocument
+  // reporter info (basic)
+  let reporterName =
+    auth.currentUser?.displayName || auth.currentUser?.email || "Member";
+  let reporterPhotoURL = auth.currentUser?.photoURL ?? null;
+
+  // (optional but recommended) hydrate reporter info from members collection
+  try {
+    const profSnap = await getDoc(doc(db, "members", uid));
+    if (profSnap.exists()) {
+      const p = profSnap.data() as any;
+      reporterName = p.fullName || p.name || reporterName;
+      reporterPhotoURL = p.photoURL || reporterPhotoURL;
+    }
+  } catch (e) {
+    console.log("Could not load reporter profile; using auth fields", e);
+  }
+
+  // 1) Save report under the post (source of truth)
   await setDoc(
     doc(db, "posts", postId, "reports", uid),
     {
       userId: uid,
+      reporterName,
+      reporterPhotoURL,
       reason,
-      createdAt: new Date(),
-    }
+      createdAt: serverTimestamp(),
+    },
+    { merge: true }
   );
 
-  // Mark the post as "reported" (only admin or owner can update)
-  // So we use updateDoc inside a try/catch
+  // 2) Flag post (optional)
   try {
     await updateDoc(doc(db, "posts", postId), {
       reported: true,
+      lastReportedAt: serverTimestamp(),
     });
   } catch (e) {
-    console.log("Not allowed to update main post, but report saved", e);
+    console.log("Not allowed to update post flag, but report saved", e);
   }
+
+  // 3) Add/Update ONE shared admin inbox doc (no admin list, no hardcoding)
+  const post = await getPostById(postId);
+  const postTitle = post?.title ?? "A post";
+
+  await upsertPostReportToAdminInbox({
+    postId,
+    reporterId: uid,
+    reporterName,
+    reporterPhotoURL,
+    reason,
+    postTitle,
+  });
 }
+
 
 /** ------------------ ADMIN: GET REPORTED POSTS ------------------ **/
 /** ------------------ ADMIN: GET REPORTED POSTS ------------------ **/
@@ -597,4 +634,5 @@ export async function adminGetReportedPosts() {
 
   return results;
 }
+
 
