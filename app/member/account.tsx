@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { signOut } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
+
 
 import {
   ScrollView,
@@ -155,31 +158,39 @@ export default function AccountScreen() {
   // ------------------------------------------------------------
   // DEACTIVATE ACCOUNT
   // ------------------------------------------------------------
-  const handleDeactivate = async () => {
-    if (!user) return;
+const handleDeactivate = async () => {
+  if (!user) return;
 
-    Alert.alert(
-      "Deactivate account?",
-      "Your account will be marked inactive.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Deactivate",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await updateDoc(doc(db, "members", user.uid), {
-                isActive: false,
-              });
-              Alert.alert("Done", "Account deactivated.");
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Could not deactivate.");
-            }
-          },
+  Alert.alert(
+    "Deactivate account?",
+    "Your account will be deleted in 7 days. If you log in before then, you can cancel the deletion.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Deactivate",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const fn = httpsCallable(getFunctions(), "scheduleAccountDeletion");
+            await fn();
+
+            await signOut(auth);
+
+            Alert.alert(
+              "Scheduled",
+              "Your account is scheduled for deletion in 7 days."
+            );
+          } catch (err: any) {
+            Alert.alert("Error", err.message || "Could not deactivate.");
+          }
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
+
+
+
 
   // ------------------------------------------------------------
   // UI

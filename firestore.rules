@@ -1,24 +1,188 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
-    function isOwner(ownerId) { return isSignedIn() && request.auth.uid == ownerId; }
 
-    /* MEMBERS (readable for feed display) */
-    match /members/{uid} {
-      allow read: if true; // everyone can read basic member info
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      allow update, delete: if isOwner(uid);
+    /* ---------------------------------------------------- */
+    /*                    GLOBAL HELPERS                    */
+    /* ---------------------------------------------------- */
+    function isSignedIn() { 
+      return request.auth != null; 
     }
 
-    /* POSTS (public feed for signed-in users) */
+    function isOwner(ownerId) { 
+      return isSignedIn() && request.auth.uid == ownerId; 
+    }
+
+    // 🔥 ADMIN CHECK (reads their own member document)
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/members/$(request.auth.uid))
+            .data.role == "admin";
+    }
+
+
+
+    /* ---------------------------------------------------- */
+    /*                     MEMBERS COLLECTION               */
+    /* ---------------------------------------------------- */
+      match /members/{uid} {
+
+        // Keep your current behavior (public read/list)
+        allow read, list: if true;
+
+        // Create your own profile
+        allow create: if isSignedIn() && request.auth.uid == uid;
+
+        // Update profile fields (but NOT security/deletion/admin fields)
+        allow update: if (isOwner(uid) && isSafeMemberUpdate())
+                      || isAdmin();
+
+        // Only admins can delete member docs (Cloud Function uses Admin SDK anyway)
+        allow delete: if isAdmin();
+
+        function isSafeMemberUpdate() {
+          let changed = request.resource.data.diff(resource.data).changedKeys();
+
+          // These fields are server-controlled ONLY (Cloud Function)
+          return !changed.hasAny([
+            "role",
+            "status",
+            "isActive",
+            "deactivatedAt",
+            "deleteAfter"
+          ]);
+        }
+      }
+
+
+    /* ---------------------------------------------------- */
+    /*                FRIEND REQUESTS COLLECTION            */
+    /* ---------------------------------------------------- */
+    match /friendRequests/{requestId} {
+      
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.fromUid
+                    && request.resource.data.toUid != request.auth.uid;
+
+      allow read: if isSignedIn()
+                  && (request.auth.uid == resource.data.fromUid
+                      || request.auth.uid == resource.data.toUid);
+
+      allow list: if isSignedIn();
+
+      allow update: if isSignedIn()
+                    && request.auth.uid == resource.data.toUid
+                    && request.resource.data.fromUid == resource.data.fromUid
+                    && request.resource.data.toUid == resource.data.toUid
+                    && request.resource.data.diff(resource.data)
+                          .changedKeys()
+                          .hasOnly(["status", "respondedAt"]);
+
+      allow delete: if false;
+    }
+
+    /* ---------------------------------------------------- */
+    /*                     USERS COLLECTION                 */
+    /* ---------------------------------------------------- */
+    match /users/{uid} {
+      
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+
+      match /activity/{activityId} {
+        allow read, create, delete: if request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      match /notifications/{notifId} {
+        allow read: if request.auth.uid == uid;
+        allow create: if isSignedIn();
+        allow delete: if request.auth.uid == uid;
+
+        allow update: if request.auth.uid == uid
+                      && request.resource.data.read == true
+                      && request.resource.data.size() == resource.data.size()
+                      && request.resource.data.diff(resource.data)
+                            .changedKeys()
+                            .hasOnly(["read"]);
+      }
+
+      match /friends/{friendUid} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+
+        allow create, update, delete: if isSignedIn()
+                                      && (request.auth.uid == uid
+                                          || request.auth.uid == friendUid);
+        
+        allow list: if request.auth.uid == uid;
+      }
+    }
+
+    /* ---------------------------------------------------- */
+    /*                        POSTS                         */
+    /* ---------------------------------------------------- */
     match /posts/{postId} {
-      allow read: if true; // public feed
+      allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.ownerId);
+
+      // 🔥 owner OR admin can update/delete posts
+      allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
+
+      match /likes/{userId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+      }
+      
+      match /pollVotes/{userId} {
+        // Allow anyone logged in to read poll results
+        allow read: if request.auth != null;
+
+        // Only the current user can write to their own vote document
+        allow create, update, delete: if request.auth != null
+                                      && request.auth.uid == userId;
+      }
+
+      // ⭐ NEW: REPORTS SUBCOLLECTION
+      match /reports/{reportId} {
+
+        // Any signed-in user can create OR update *their own* report doc
+        allow create, update: if isSignedIn()
+                              && request.auth.uid == reportId   // enforce doc ID = userId
+                              && request.resource.data.userId == request.auth.uid;
+
+        // Only admins can read or delete reports
+        allow read, delete: if isAdmin();
+      }
+
     }
+    
+    
+    /* ---------------------------------------------------- */
+    /*                    ADMIN REPORTS INBOX               */
+    /* ---------------------------------------------------- */
+    match /adminReports/{reportId} {
+
+      // Any signed-in user can create/update an inbox item
+      // (this is what reportPost() does)
+      allow create, update: if isSignedIn();
+
+      // Only admins can read or delete from the inbox
+      allow read, delete: if isAdmin();
+
+      match /reports/{reporterUid} {
+        allow create, update: if isSignedIn()
+                              && request.auth.uid == reporterUid;
+
+        allow read, delete: if isAdmin();
+      }
+    }
+
+
   }
 }
-
-
-
